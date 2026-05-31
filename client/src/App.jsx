@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { ASSETS } from "./constants/assets";
 import { getAuthErrorMessage } from "./constants/authErrors";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { auth } from "./lib/firebase";
 import "./styles.css";
 
 const CLUB_NAME = "CHORUS";
+const LOGO_PATH = "/assets/chorus-logo.png";
 const SPLASH_DURATION_MS = 2500;
 const INTRO_DURATION_MS = 1800;
 
@@ -88,21 +88,17 @@ export default function App() {
 
         <div className="hero-art" aria-hidden="true">
           <div className="poster-stack">
-            <img className="poster-logo" src={ASSETS.logo} alt="" />
+            <LogoMark isDecorative />
           </div>
         </div>
 
-        <div className="login-panel">
+        <div className={currentUser ? "login-panel login-panel-home" : "login-panel"}>
           {currentUser ? (
-            <HomePanel onLogout={handleLogout} />
+            <HomePanel email={currentUser.email} onLogout={handleLogout} />
           ) : (
             <>
               <div className="brand-block">
-                <img
-                  className="panel-logo"
-                  src={ASSETS.logo}
-                  alt={`${CLUB_NAME} logo`}
-                />
+                <LogoMark />
                 <h1 id="page-heading">{CLUB_NAME}</h1>
               </div>
 
@@ -146,7 +142,7 @@ function BrandIntro() {
   return (
     <main className="intro-shell" aria-label={`${CLUB_NAME} introduction`}>
       <section className="intro-card">
-        <img className="intro-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
+        <LogoMark />
         <div className="intro-title-group">
           <h1>{CLUB_NAME}</h1>
           <div className="intro-dots" aria-hidden="true">
@@ -168,14 +164,14 @@ function SessionLoading() {
   return (
     <main className="app-shell">
       <section className="loading-card">
-        <img className="loading-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
+        <LogoMark />
         <h1>{CLUB_NAME}</h1>
       </section>
     </main>
   );
 }
 
-function HomePanel({ onLogout }) {
+function HomePanel({ email, onLogout }) {
   const homeItems = [
     "Live Productions",
     "Rehearsal Dates",
@@ -184,11 +180,8 @@ function HomePanel({ onLogout }) {
 
   return (
     <section className="home-panel" aria-labelledby="page-heading">
-      <button className="icon-button" type="button" onClick={onLogout} aria-label="Sign out">
-        X
-      </button>
       <div className="home-header">
-        <img className="home-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
+        <LogoMark />
         <h1 id="page-heading">CHORUS Production</h1>
         <p>At a Glance</p>
       </div>
@@ -200,7 +193,27 @@ function HomePanel({ onLogout }) {
           </article>
         ))}
       </div>
+      <footer className="user-footer">
+        <p>
+          <span>Logged in as</span>
+          <strong>{email}</strong>
+        </p>
+        <button type="button" onClick={onLogout}>
+          Sign out
+        </button>
+      </footer>
     </section>
+  );
+}
+
+function LogoMark({ isDecorative = false }) {
+  return (
+    <img
+      className="logo-mark"
+      aria-hidden={isDecorative ? "true" : undefined}
+      alt={isDecorative ? "" : `${CLUB_NAME} logo`}
+      src={LOGO_PATH}
+    />
   );
 }
 
