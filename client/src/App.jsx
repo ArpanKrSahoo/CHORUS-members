@@ -1,22 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { ASSETS } from "./constants/assets";
 import { getAuthErrorMessage } from "./constants/authErrors";
 import { useAuthSession } from "./hooks/useAuthSession";
-import { auth } from "./lib/firebase";
 import "./styles.css";
 
 const CLUB_NAME = "CHORUS";
-const LOGO_PATH = "/assets/chorus-logo.png";
 const SPLASH_DURATION_MS = 2500;
 const INTRO_DURATION_MS = 1800;
 
 export default function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [screenStep, setScreenStep] = useState("loading");
-  const { currentUser, isAuthReady } = useAuthSession();
+  const { isAuthReady } = useAuthSession();
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -24,7 +19,7 @@ export default function App() {
     }, SPLASH_DURATION_MS);
 
     const introTimer = window.setTimeout(() => {
-      setScreenStep("login");
+      setScreenStep("app");
     }, SPLASH_DURATION_MS + INTRO_DURATION_MS);
 
     return () => {
@@ -33,46 +28,9 @@ export default function App() {
     };
   }, []);
 
-  async function handleLogin(event) {
-    event.preventDefault();
-    setErrorMessage("");
-
-    if (!auth) {
-      setErrorMessage("Firebase configuration is required before login.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      setPassword("");
-    } catch (error) {
-      setErrorMessage(getAuthErrorMessage(error));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleLogout() {
-    setErrorMessage("");
-
-    if (auth) {
-      await signOut(auth);
-    }
-  }
-
-  if (screenStep === "loading") {
-    return <SplashScreen />;
-  }
-
-  if (screenStep === "intro") {
-    return <BrandIntro />;
-  }
-
-  if (!isAuthReady) {
-    return <SessionLoading />;
-  }
+  if (screenStep === "loading") return <SplashScreen />;
+  if (screenStep === "intro") return <BrandIntro />;
+  if (!isAuthReady) return <SessionLoading />;
 
   return (
     <main className="app-shell">
@@ -88,17 +46,21 @@ export default function App() {
 
         <div className="hero-art" aria-hidden="true">
           <div className="poster-stack">
-            <LogoMark isDecorative />
+            <img className="poster-logo" src={ASSETS.logo} alt="" />
           </div>
         </div>
 
-        <div className={currentUser ? "login-panel login-panel-home" : "login-panel"}>
+        <div className="login-panel">
           {currentUser ? (
-            <HomePanel email={currentUser.email} onLogout={handleLogout} />
+            <HomePanel onLogout={handleLogout} />
           ) : (
             <>
               <div className="brand-block">
-                <LogoMark />
+                <img
+                  className="panel-logo"
+                  src={ASSETS.logo}
+                  alt={`${CLUB_NAME} logo`}
+                />
                 <h1 id="page-heading">{CLUB_NAME}</h1>
               </div>
 
@@ -142,7 +104,7 @@ function BrandIntro() {
   return (
     <main className="intro-shell" aria-label={`${CLUB_NAME} introduction`}>
       <section className="intro-card">
-        <LogoMark />
+        <img className="intro-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
         <div className="intro-title-group">
           <h1>{CLUB_NAME}</h1>
           <div className="intro-dots" aria-hidden="true">
@@ -164,14 +126,14 @@ function SessionLoading() {
   return (
     <main className="app-shell">
       <section className="loading-card">
-        <LogoMark />
+        <img className="loading-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
         <h1>{CLUB_NAME}</h1>
       </section>
     </main>
   );
 }
 
-function HomePanel({ email, onLogout }) {
+function HomePanel({ onLogout }) {
   const homeItems = [
     "Live Productions",
     "Rehearsal Dates",
@@ -180,8 +142,11 @@ function HomePanel({ email, onLogout }) {
 
   return (
     <section className="home-panel" aria-labelledby="page-heading">
+      <button className="icon-button" type="button" onClick={onLogout} aria-label="Sign out">
+        X
+      </button>
       <div className="home-header">
-        <LogoMark />
+        <img className="home-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
         <h1 id="page-heading">CHORUS Production</h1>
         <p>At a Glance</p>
       </div>
@@ -193,27 +158,7 @@ function HomePanel({ email, onLogout }) {
           </article>
         ))}
       </div>
-      <footer className="user-footer">
-        <p>
-          <span>Logged in as</span>
-          <strong>{email}</strong>
-        </p>
-        <button type="button" onClick={onLogout}>
-          Sign out
-        </button>
-      </footer>
     </section>
-  );
-}
-
-function LogoMark({ isDecorative = false }) {
-  return (
-    <img
-      className="logo-mark"
-      aria-hidden={isDecorative ? "true" : undefined}
-      alt={isDecorative ? "" : `${CLUB_NAME} logo`}
-      src={LOGO_PATH}
-    />
   );
 }
 
