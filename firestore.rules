@@ -1,0 +1,112 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function authEmail() {
+      return isSignedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : "";
+    }
+
+    function isPredefinedAdmin() {
+      return authEmail() in [
+        "kunal.mitra2024@chorus.com",
+        "arpan.kumarsahoo2024@chorus.com"
+      ];
+    }
+
+    function memberRole() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/members/$(authEmail()))
+        ? get(/databases/$(database)/documents/members/$(authEmail())).data.role
+        : "member";
+    }
+
+    function isAdmin() {
+      return isPredefinedAdmin() || memberRole() == "admin";
+    }
+
+    function isText(value, maxLength) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= maxLength;
+    }
+
+    function hasOptionalText(fieldName, maxLength) {
+      return !request.resource.data.keys().hasAny([fieldName])
+        || (
+          request.resource.data.get(fieldName, "") is string
+          && request.resource.data.get(fieldName, "").size() <= maxLength
+        );
+    }
+
+    function isValidMember(memberEmail) {
+      return request.resource.data.keys().hasOnly([
+          "authUid",
+          "createdAt",
+          "email",
+          "role"
+        ])
+        && request.resource.data.email == memberEmail
+        && isText(request.resource.data.authUid, 128)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.role in ["member", "admin", "director"];
+    }
+
+    function isValidNotice() {
+      return request.resource.data.keys().hasOnly([
+          "body",
+          "createdAt",
+          "title",
+          "updatedAt"
+        ])
+        && isText(request.resource.data.title, 120)
+        && isText(request.resource.data.body, 3000)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidRehearsal() {
+      return request.resource.data.keys().hasOnly([
+          "createdAt",
+          "location",
+          "note",
+          "rehearsalAt",
+          "title",
+          "updatedAt"
+        ])
+        && isText(request.resource.data.title, 120)
+        && request.resource.data.rehearsalAt is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && hasOptionalText("location", 160)
+        && hasOptionalText("note", 1200);
+    }
+
+    match /members/{memberEmail} {
+      allow read: if isSignedIn() && (authEmail() == memberEmail || isAdmin());
+      allow create, update: if isAdmin() && isValidMember(memberEmail);
+      allow delete: if isAdmin();
+    }
+
+    match /notices/{noticeId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() && isValidNotice();
+      allow delete: if isAdmin();
+    }
+
+    match /rehearsals/{rehearsalId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() && isValidRehearsal();
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

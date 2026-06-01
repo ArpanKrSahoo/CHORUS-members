@@ -1,12 +1,11 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
 
 export default function ProtectedLayout() {
-  const { currentUser, isAuthReady } = useAuthSession();
+  const { currentUser, isAdmin, isAuthReady, userRole } = useAuthSession();
 
   if (!isAuthReady) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
@@ -17,9 +16,8 @@ export default function ProtectedLayout() {
 
   return (
     <div className="protected-shell">
-      <Navbar onLogout={handleLogout} />
       <main className="page-content">
-        <Outlet />
+        <Outlet context={{ currentUser, isAdmin, userRole, onLogout: handleLogout }} />
       </main>
     </div>
   );
