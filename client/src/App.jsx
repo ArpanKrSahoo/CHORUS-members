@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import SplashScreen from "./components/SplashScreen";
+import { Navigate, Route, Routes } from "react-router-dom";
 import BrandIntro from "./components/BrandIntro";
 import SessionLoading from "./components/SessionLoading";
-import LoginPage from "./pages/LoginPage";
-import ProtectedLayout from "./pages/ProtectedLayout";
-import HomePage from "./pages/HomePage";
-import ProductionsPage from "./pages/ProductionsPage";
-import RehearsalsPage from "./pages/RehearsalsPage";
-import NoticesPage from "./pages/NoticesPage";
+import SplashScreen from "./components/SplashScreen";
 import { useAuthSession } from "./hooks/useAuthSession";
+import AdminPage from "./pages/AdminPage";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import NoticesPage from "./pages/NoticesPage";
+import ProductionsPage from "./pages/ProductionsPage";
+import ProtectedLayout from "./pages/ProtectedLayout";
+import RehearsalsPage from "./pages/RehearsalsPage";
 import "./styles.css";
 
 const SPLASH_DURATION_MS = 2500;
@@ -17,7 +18,7 @@ const INTRO_DURATION_MS = 1800;
 
 export default function App() {
   const [screenStep, setScreenStep] = useState("loading");
-  const { isAuthReady } = useAuthSession();
+  const { isAdmin, isAuthReady } = useAuthSession();
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -39,22 +40,20 @@ export default function App() {
   if (!isAuthReady) return <SessionLoading />;
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* Protected — all authenticated pages live inside ProtectedLayout */}
-        <Route element={<ProtectedLayout />}>
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/productions" element={<ProductionsPage />} />
-          <Route path="/rehearsals" element={<RehearsalsPage />} />
-          <Route path="/notices" element={<NoticesPage />} />
-        </Route>
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedLayout />}>
+        <Route index element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/productions" element={<ProductionsPage />} />
+        <Route path="/rehearsals" element={<RehearsalsPage />} />
+        <Route path="/notices" element={<NoticesPage />} />
+        <Route
+          path="/admin"
+          element={isAdmin ? <AdminPage /> : <Navigate to="/home" replace />}
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
   );
 }

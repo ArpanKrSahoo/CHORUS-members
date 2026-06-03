@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const { currentUser, isAuthReady } = useAuthSession();
 
-  // Already logged in → go straight to home
+  // Already logged in users go straight to home.
   if (isAuthReady && currentUser) {
     return <Navigate to="/home" replace />;
   }
