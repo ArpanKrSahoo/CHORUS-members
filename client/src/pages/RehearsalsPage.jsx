@@ -50,30 +50,40 @@ export default function RehearsalsPage() {
   return (
     <div className="inner-page">
       <header className="page-header page-header--with-action">
-        <div>
-          <h1>Rehearsal Dates</h1>
-          <p>Live dates are shown until their scheduled time has passed.</p>
+        <div className="header-title-block">
+          <h1 className="themed-page-title">মহড়া সূচী (Rehearsals)</h1>
+          <p className="themed-page-subtitle">Live rehearsal call times are shown until scheduled slot has passed.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => navigate("/home")}>
-          Home
+        <button className="workspace-back-btn" type="button" onClick={() => navigate("/home")}>
+          ← Back to Lobby
         </button>
       </header>
 
-      {isLoading ? <p className="empty-state">Loading rehearsal dates...</p> : null}
-      {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
+      {isLoading ? <p className="workspace-loading-state">Retrieving call sheets...</p> : null}
+      {errorMessage ? <p className="workspace-error-card">{errorMessage}</p> : null}
       {!isLoading && !errorMessage && liveRehearsals.length === 0 ? (
-        <p className="empty-state">No live rehearsal dates.</p>
+        <p className="workspace-empty-state">No live rehearsal calls have been listed yet.</p>
       ) : null}
 
-      <div className="card-list">
+      <div className="themed-card-list">
         {liveRehearsals.map((rehearsal) => (
-          <article className="info-card" key={rehearsal.id}>
+          <article className="info-card rehearsal-card" key={rehearsal.id}>
             <span className="info-card__date">
-              {formatDateTime(rehearsal.rehearsalAt)}
+              <span className="calendar-icon">📅</span> {formatDateTime(rehearsal.rehearsalAt)}
             </span>
-            <h2>{rehearsal.title}</h2>
-            {rehearsal.location ? <p>{rehearsal.location}</p> : null}
-            {rehearsal.note ? <p>{rehearsal.note}</p> : null}
+            <h2 className="rehearsal-card-title">
+              <span className="theatrical-bullet">🎭</span> {rehearsal.title}
+            </h2>
+            {rehearsal.location ? (
+              <p className="rehearsal-card-location">
+                <span className="location-icon">📍</span> <strong>Stage/Room:</strong> {rehearsal.location}
+              </p>
+            ) : null}
+            {rehearsal.note ? (
+              <p className="rehearsal-card-note">
+                <span className="note-icon">📝</span> <strong>Director Notes:</strong> {rehearsal.note}
+              </p>
+            ) : null}
           </article>
         ))}
       </div>

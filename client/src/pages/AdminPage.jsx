@@ -280,24 +280,28 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="inner-page admin-page">
+    <div className="inner-page admin-page-container">
       <header className="page-header page-header--with-action">
-        <div>
-          <h1>Admin</h1>
-          <p>Manage members, notices, and rehearsal dates.</p>
+        <div className="header-title-block">
+          <h1 className="themed-page-title">নিয়ন্ত্রণ কক্ষ (Admin Panel)</h1>
+          <p className="themed-page-subtitle">Manage group registry, issue new notices, and set rehearsal call times.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => navigate("/home")}>
-          Home
+        <button className="workspace-back-btn" type="button" onClick={() => navigate("/home")}>
+          ← Back to Lobby
         </button>
       </header>
 
       <section className="admin-grid">
         <form className="admin-form" onSubmit={handleAddMember}>
-          <h2>Add Member</h2>
+          <div className="form-header-row">
+            <h2>Add Member</h2>
+            <span className="form-icon">👤</span>
+          </div>
           <label>
-            <span>Email</span>
+            <span>Email Address</span>
             <input
               autoComplete="email"
+              placeholder="member@chorus.com"
               onChange={(event) => updateMemberField("email", event.target.value)}
               required
               type="email"
@@ -305,9 +309,10 @@ export default function AdminPage() {
             />
           </label>
           <label>
-            <span>Password</span>
+            <span>Temporary Password</span>
             <input
               autoComplete="new-password"
+              placeholder="Min 6 characters"
               minLength={6}
               onChange={(event) => updateMemberField("password", event.target.value)}
               required
@@ -316,7 +321,7 @@ export default function AdminPage() {
             />
           </label>
           <label>
-            <span>Role</span>
+            <span>Assigned Role</span>
             <select
               onChange={(event) => updateMemberField("role", event.target.value)}
               value={memberForm.role}
@@ -326,17 +331,25 @@ export default function AdminPage() {
               <option value="director">Director</option>
             </select>
           </label>
-          {memberStatus ? <p className="form-status">{memberStatus}</p> : null}
-          <button className="primary-button" disabled={isSavingMember} type="submit">
-            {isSavingMember ? "Adding..." : "Add Member"}
+          {memberStatus ? (
+            <p className={`form-status-alert ${memberStatus.includes("success") ? "success" : "error"}`}>
+              {memberStatus}
+            </p>
+          ) : null}
+          <button className="admin-submit-btn" disabled={isSavingMember} type="submit">
+            {isSavingMember ? "Adding Member..." : "Add Member"}
           </button>
         </form>
 
         <form className="admin-form" onSubmit={handleSaveNotice}>
-          <h2>{editingNoticeId ? "Edit Notice" : "Add Notice"}</h2>
+          <div className="form-header-row">
+            <h2>{editingNoticeId ? "Edit Notice" : "Add Notice"}</h2>
+            <span className="form-icon">📌</span>
+          </div>
           <label>
-            <span>Title</span>
+            <span>Notice Title</span>
             <input
+              placeholder="e.g. Schedule Update"
               onChange={(event) => updateNoticeField("title", event.target.value)}
               required
               type="text"
@@ -344,21 +357,26 @@ export default function AdminPage() {
             />
           </label>
           <label>
-            <span>Body</span>
+            <span>Notice Body</span>
             <textarea
+              placeholder="Type announcement details here..."
               onChange={(event) => updateNoticeField("body", event.target.value)}
               required
               rows={5}
               value={noticeForm.body}
             />
           </label>
-          {noticeStatus ? <p className="form-status">{noticeStatus}</p> : null}
-          <button className="primary-button" disabled={isSavingNotice} type="submit">
+          {noticeStatus ? (
+            <p className={`form-status-alert ${noticeStatus.includes("published") || noticeStatus.includes("updated") ? "success" : "error"}`}>
+              {noticeStatus}
+            </p>
+          ) : null}
+          <button className="admin-submit-btn" disabled={isSavingNotice} type="submit">
             {isSavingNotice ? "Saving..." : "Save Notice"}
           </button>
           {editingNoticeId ? (
             <button
-              className="secondary-button"
+              className="admin-cancel-btn"
               onClick={() => {
                 setEditingNoticeId("");
                 setNoticeForm(initialNoticeForm);
@@ -371,10 +389,14 @@ export default function AdminPage() {
         </form>
 
         <form className="admin-form" onSubmit={handleSaveRehearsal}>
-          <h2>{editingRehearsalId ? "Edit Rehearsal" : "Add Rehearsal"}</h2>
+          <div className="form-header-row">
+            <h2>{editingRehearsalId ? "Edit Rehearsal" : "Add Rehearsal"}</h2>
+            <span className="form-icon">🎭</span>
+          </div>
           <label>
-            <span>Title</span>
+            <span>Rehearsal Title</span>
             <input
+              placeholder="e.g. Act I Run-through"
               onChange={(event) => updateRehearsalField("title", event.target.value)}
               required
               type="text"
@@ -391,28 +413,34 @@ export default function AdminPage() {
             />
           </label>
           <label>
-            <span>Location</span>
+            <span>Location / Stage Room</span>
             <input
+              placeholder="e.g. Stage Room A"
               onChange={(event) => updateRehearsalField("location", event.target.value)}
               type="text"
               value={rehearsalForm.location}
             />
           </label>
           <label>
-            <span>Note</span>
+            <span>Director's Instruction Note</span>
             <textarea
+              placeholder="e.g. Actors in scene 1-3 must prepare..."
               onChange={(event) => updateRehearsalField("note", event.target.value)}
               rows={4}
               value={rehearsalForm.note}
             />
           </label>
-          {rehearsalStatus ? <p className="form-status">{rehearsalStatus}</p> : null}
-          <button className="primary-button" disabled={isSavingRehearsal} type="submit">
+          {rehearsalStatus ? (
+            <p className={`form-status-alert ${rehearsalStatus.includes("added") || rehearsalStatus.includes("updated") ? "success" : "error"}`}>
+              {rehearsalStatus}
+            </p>
+          ) : null}
+          <button className="admin-submit-btn" disabled={isSavingRehearsal} type="submit">
             {isSavingRehearsal ? "Saving..." : "Save Rehearsal"}
           </button>
           {editingRehearsalId ? (
             <button
-              className="secondary-button"
+              className="admin-cancel-btn"
               onClick={() => {
                 setEditingRehearsalId("");
                 setRehearsalForm(initialRehearsalForm);
@@ -427,63 +455,63 @@ export default function AdminPage() {
 
       <section className="admin-list-grid">
         <article className="admin-list-panel">
-          <h2>Members</h2>
+          <h2>Registry Directory</h2>
           <div className="table-list">
             {members.map((member) => (
               <div className="table-row" key={member.email}>
-                <span>{member.email}</span>
-                <strong>{member.role}</strong>
-                <small>{member.source}</small>
+                <span className="member-email-col">{member.email}</span>
+                <span className="member-role-badge" data-role={member.role}>{member.role}</span>
+                <small className="member-source-label">{member.source}</small>
               </div>
             ))}
           </div>
         </article>
 
         <article className="admin-list-panel">
-          <h2>Notices</h2>
-          <div className="card-list">
+          <h2>Published Notices</h2>
+          <div className="card-list admin-card-list">
             {notices.map((notice) => (
-              <div className="editable-item" key={notice.id}>
-                <div>
+              <div className="editable-item notice-admin-card" key={notice.id}>
+                <div className="item-info">
                   <strong>{notice.title}</strong>
                   <p>{notice.body}</p>
                 </div>
                 <div className="item-actions">
-                  <button type="button" onClick={() => startNoticeEdit(notice)}>
+                  <button className="item-edit-btn" type="button" onClick={() => startNoticeEdit(notice)}>
                     Edit
                   </button>
-                  <button type="button" onClick={() => deleteNotice(notice.id)}>
+                  <button className="item-delete-btn" type="button" onClick={() => deleteNotice(notice.id)}>
                     Delete
                   </button>
                 </div>
               </div>
             ))}
-            {notices.length === 0 ? <p className="empty-state">No notices added.</p> : null}
+            {notices.length === 0 ? <p className="empty-state">No notices published yet.</p> : null}
           </div>
         </article>
 
         <article className="admin-list-panel">
-          <h2>Rehearsals</h2>
-          <div className="card-list">
+          <h2>Scheduled Rehearsals</h2>
+          <div className="card-list admin-card-list">
             {rehearsals.map((rehearsal) => (
-              <div className="editable-item" key={rehearsal.id}>
-                <div>
+              <div className="editable-item rehearsal-admin-card" key={rehearsal.id}>
+                <div className="item-info">
                   <strong>{rehearsal.title}</strong>
-                  <p>{formatDateTime(rehearsal.rehearsalAt)}</p>
-                  {rehearsal.location ? <p>{rehearsal.location}</p> : null}
+                  <p className="rehearsal-time-label">📅 {formatDateTime(rehearsal.rehearsalAt)}</p>
+                  {rehearsal.location ? <p className="rehearsal-location-label">📍 {rehearsal.location}</p> : null}
                 </div>
                 <div className="item-actions">
-                  <button type="button" onClick={() => startRehearsalEdit(rehearsal)}>
+                  <button className="item-edit-btn" type="button" onClick={() => startRehearsalEdit(rehearsal)}>
                     Edit
                   </button>
-                  <button type="button" onClick={() => deleteRehearsal(rehearsal.id)}>
+                  <button className="item-delete-btn" type="button" onClick={() => deleteRehearsal(rehearsal.id)}>
                     Delete
                   </button>
                 </div>
               </div>
             ))}
             {rehearsals.length === 0 ? (
-              <p className="empty-state">No rehearsal dates added.</p>
+              <p className="empty-state">No rehearsal dates scheduled yet.</p>
             ) : null}
           </div>
         </article>
@@ -491,3 +519,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

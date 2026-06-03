@@ -11,35 +11,39 @@ export default function LoginForm({
 }) {
   return (
     <form className="login-form" onSubmit={onSubmit}>
-      <label>
-        <span>Username</span>
+      <div className="login-input-group">
+        <label htmlFor="login-email">Email Address</label>
         <input
+          id="login-email"
           autoComplete="email"
           inputMode="email"
           name="email"
+          placeholder="e.g. member@chorus.com"
           onChange={(event) => onEmailChange(event.target.value)}
           required
           type="email"
           value={email}
         />
-      </label>
+      </div>
 
-      <label>
-        <span>Password</span>
+      <div className="login-input-group">
+        <label htmlFor="login-password">Password</label>
         <input
+          id="login-password"
           autoComplete="current-password"
           name="password"
+          placeholder="••••••••"
           onChange={(event) => onPasswordChange(event.target.value)}
           required
           type="password"
           value={password}
         />
-      </label>
+      </div>
 
-      {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
+      {errorMessage ? <div className="login-error-card">{errorMessage}</div> : null}
 
-      <button className="primary-button" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Logging in..." : "Login"}
+      <button className="login-submit-button" disabled={isSubmitting} type="submit">
+        {isSubmitting ? "Opening Stage..." : "Enter Stage"}
       </button>
     </form>
   );

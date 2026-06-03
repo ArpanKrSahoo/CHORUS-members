@@ -52,29 +52,31 @@ export default function NoticesPage() {
   return (
     <div className="inner-page">
       <header className="page-header page-header--with-action">
-        <div>
-          <h1>Notices</h1>
-          <p>Latest announcements from the committee.</p>
+        <div className="header-title-block">
+          <h1 className="themed-page-title">বিজ্ঞপ্তি বোর্ড (Notice Board)</h1>
+          <p className="themed-page-subtitle">Latest official statements and announcements from the committee.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => navigate("/home")}>
-          Home
+        <button className="workspace-back-btn" type="button" onClick={() => navigate("/home")}>
+          ← Back to Lobby
         </button>
       </header>
 
-      {isLoading ? <p className="empty-state">Loading notices...</p> : null}
-      {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
+      {isLoading ? <p className="workspace-loading-state">Retrieving bulletin items...</p> : null}
+      {errorMessage ? <p className="workspace-error-card">{errorMessage}</p> : null}
       {!isLoading && !errorMessage && notices.length === 0 ? (
-        <p className="empty-state">No notices have been published yet.</p>
+        <p className="workspace-empty-state">No announcements have been published on the board yet.</p>
       ) : null}
 
-      <div className="card-list">
+      <div className="themed-card-list">
         {notices.map((notice) => (
-          <article className="info-card" key={notice.id}>
+          <article className="info-card notice-card" key={notice.id}>
             <span className="info-card__date">
-              {formatNoticeDate(notice.createdAt)}
+              <span className="announcement-badge">📢</span> {formatNoticeDate(notice.createdAt)}
             </span>
-            <h2>{notice.title}</h2>
-            <p>{notice.body}</p>
+            <h2 className="notice-card-title">
+              <span className="theatrical-bullet">📌</span> {notice.title}
+            </h2>
+            <p className="notice-card-body">{notice.body}</p>
           </article>
         ))}
       </div>

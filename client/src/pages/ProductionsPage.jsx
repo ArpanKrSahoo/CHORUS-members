@@ -7,16 +7,20 @@ export default function ProductionsPage() {
   return (
     <div className="inner-page">
       <header className="page-header page-header--with-action">
-        <div>
-          <h1>Live Productions</h1>
-          <p>No live productions have been added yet.</p>
+        <div className="header-title-block">
+          <h1 className="themed-page-title">প্রযোজনা (Live Productions)</h1>
+          <p className="themed-page-subtitle">Production archives, script folders, and performance materials.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => navigate("/home")}>
-          Home
+        <button className="workspace-back-btn" type="button" onClick={() => navigate("/home")}>
+          ← Back to Lobby
         </button>
       </header>
 
-      <p className="empty-state">Production management will be connected later.</p>
+      <div className="workspace-empty-container">
+        <div className="empty-state-icon" aria-hidden="true">🎬</div>
+        <p className="workspace-empty-state">Production management will be connected in the next stage.</p>
+        <span className="empty-state-sub">Scripts, stage plans, and roles registry are currently being cataloged.</span>
+      </div>
     </div>
   );
 }

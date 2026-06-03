@@ -1,20 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { ASSETS } from "../constants/assets";
 import { db } from "../lib/firebase";
 import { formatDateTime, getTimestampDateValue } from "../utils/dateTime";
 
 const CLUB_NAME = "CHORUS";
 
 const homeItems = [
-  { label: "Rehearsal Dates", path: "/rehearsals" },
-  { label: "Notices", path: "/notices" },
+  { label: "Rehearsal Dates", path: "/rehearsals", tag: "Rehearsals" },
+  { label: "Notice Board", path: "/notices", tag: "Notices" },
+  { label: "Live Productions", path: "/productions", tag: "Productions" },
 ];
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { currentUser, isAdmin, onLogout } = useOutletContext();
+  const { currentUser, isAdmin } = useOutletContext();
   const [notices, setNotices] = useState([]);
   const [rehearsals, setRehearsals] = useState([]);
 
@@ -57,21 +57,14 @@ export default function HomePage() {
   }, [rehearsals]);
 
   return (
-    <section className="home-panel" aria-labelledby="page-heading">
-      {isAdmin ? (
-        <button
-          className="admin-shortcut"
-          onClick={() => navigate("/admin")}
-          type="button"
-        >
-          Admin
-        </button>
-      ) : null}
-      <div className="home-header">
-        <img className="home-logo" src={ASSETS.logo} alt={`${CLUB_NAME} logo`} />
-        <h1 id="page-heading">CHORUS</h1>
-        <p>Member workspace</p>
+    <section className="home-panel-container" aria-labelledby="page-heading">
+      <div className="home-hero-banner">
+        <h1 id="page-heading">রঙ্গমঞ্চ সদস্য লবি</h1>
+        <p className="subtitle">
+          Welcome to the {CLUB_NAME} creative workspace. Review schedules, committee notes, and scripts.
+        </p>
       </div>
+
       <div className="home-grid">
         {homeItems.map((item) => (
           <button
@@ -80,72 +73,75 @@ export default function HomePage() {
             onClick={() => navigate(item.path)}
             type="button"
           >
-            <span aria-hidden="true" />
-            <h2>{item.label}</h2>
-            {item.path === "/rehearsals" ? (
-              <small>
-                {liveRehearsals.length > 0
-                  ? formatDateTime(liveRehearsals[0].rehearsalAt)
-                  : "No upcoming dates"}
-              </small>
-            ) : null}
-            {item.path === "/notices" ? (
-              <small>
-                {notices.length > 0 ? `${notices.length} notice previews` : "No notices"}
-              </small>
-            ) : null}
+            <span className="tile-pattern-accent" aria-hidden="true" />
+            <div className="tile-content">
+              <h2>{item.label}</h2>
+              {item.path === "/rehearsals" ? (
+                <small>
+                  {liveRehearsals.length > 0
+                    ? `Next: ${formatDateTime(liveRehearsals[0].rehearsalAt)}`
+                    : "No upcoming rehearsals"}
+                </small>
+              ) : null}
+              {item.path === "/notices" ? (
+                <small>
+                  {notices.length > 0 ? `${notices.length} active announcements` : "No notices"}
+                </small>
+              ) : null}
+              {item.path === "/productions" ? (
+                <small>View files & script library</small>
+              ) : null}
+            </div>
           </button>
         ))}
       </div>
 
       <section className="home-preview-grid" aria-label="Latest updates">
-        <article className="home-preview">
+        <article className="home-preview-card">
           <div className="section-title-row">
-            <h2>Live Rehearsals</h2>
-            <button type="button" onClick={() => navigate("/rehearsals")}>
-              View
+            <h2>Call Sheet Snippet</h2>
+            <button className="preview-action-btn" type="button" onClick={() => navigate("/rehearsals")}>
+              All Calls
             </button>
           </div>
-          {liveRehearsals.length > 0 ? (
-            liveRehearsals.map((rehearsal) => (
-              <div className="preview-item" key={rehearsal.id}>
-                <strong>{rehearsal.title}</strong>
-                <span>{formatDateTime(rehearsal.rehearsalAt)}</span>
-              </div>
-            ))
-          ) : (
-            <p className="muted-text">No live rehearsal dates.</p>
-          )}
+          <div className="preview-items-list">
+            {liveRehearsals.length > 0 ? (
+              liveRehearsals.map((rehearsal) => (
+                <div className="preview-item" key={rehearsal.id}>
+                  <strong>{rehearsal.title}</strong>
+                  <span>{formatDateTime(rehearsal.rehearsalAt)}</span>
+                </div>
+              ))
+            ) : (
+              <p className="muted-text">No upcoming rehearsals scheduled.</p>
+            )}
+          </div>
         </article>
 
-        <article className="home-preview">
+        <article className="home-preview-card">
           <div className="section-title-row">
-            <h2>Notice Board</h2>
-            <button type="button" onClick={() => navigate("/notices")}>
-              View
+            <h2>Notice Board Summary</h2>
+            <button className="preview-action-btn" type="button" onClick={() => navigate("/notices")}>
+              All Notices
             </button>
           </div>
-          {notices.length > 0 ? (
-            notices.map((notice) => (
-              <div className="preview-item" key={notice.id}>
-                <strong>{notice.title}</strong>
-                <span>{notice.body}</span>
-              </div>
-            ))
-          ) : (
-            <p className="muted-text">No notices have been added.</p>
-          )}
+          <div className="preview-items-list">
+            {notices.slice(0, 3).length > 0 ? (
+              notices.slice(0, 3).map((notice) => (
+                <div className="preview-item" key={notice.id}>
+                  <strong>{notice.title}</strong>
+                  <span>{notice.body}</span>
+                </div>
+              ))
+            ) : (
+              <p className="muted-text">No active notices published.</p>
+            )}
+          </div>
         </article>
       </section>
 
-      <footer className="user-footer">
-        <p>
-          <span>Logged in as</span>
-          <strong>{currentUser.email ?? "Unknown user"}</strong>
-        </p>
-        <button type="button" onClick={onLogout}>
-          Sign out
-        </button>
+      <footer className="home-lobby-footer">
+        <p className="tagline">“নাটক শুধু বিনোদন নয়, সমাজকে চেনার দর্পণ।”</p>
       </footer>
     </section>
   );
