@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import {
   Timestamp,
@@ -65,6 +65,7 @@ function mergePredefinedAdmins(members) {
 
 export default function AdminPage() {
   const navigate = useNavigate();
+  const { currentUser } = useOutletContext();
   const [memberForm, setMemberForm] = useState(initialMemberForm);
   const [noticeForm, setNoticeForm] = useState(initialNoticeForm);
   const [rehearsalForm, setRehearsalForm] = useState(initialRehearsalForm);
@@ -79,6 +80,76 @@ export default function AdminPage() {
   const [isSavingMember, setIsSavingMember] = useState(false);
   const [isSavingNotice, setIsSavingNotice] = useState(false);
   const [isSavingRehearsal, setIsSavingRehearsal] = useState(false);
+
+  const [selectedAttendanceRehearsalId, setSelectedAttendanceRehearsalId] = useState("");
+  const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [attendanceStatus, setAttendanceStatus] = useState("");
+
+  useEffect(() => {
+    if (!db || !selectedAttendanceRehearsalId) {
+      setAttendanceRecords({});
+      return undefined;
+    }
+
+    const docRef = doc(db, "attendance", selectedAttendanceRehearsalId);
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const records = {};
+        if (data.records) {
+          Object.keys(data.records).forEach((email) => {
+            records[email] = data.records[email].status;
+          });
+        }
+        setAttendanceRecords(records);
+      } else {
+        setAttendanceRecords({});
+      }
+    });
+  }, [selectedAttendanceRehearsalId]);
+
+  function handleToggleStatus(email, status) {
+    setAttendanceRecords((prev) => ({
+      ...prev,
+      [email]: status,
+    }));
+  }
+
+  async function handleSaveAttendance(event) {
+    event.preventDefault();
+    setAttendanceStatus("");
+
+    if (!db || !selectedAttendanceRehearsalId) {
+      setAttendanceStatus("Rehearsal or Firebase not configured.");
+      return;
+    }
+
+    setIsSavingAttendance(true);
+
+    const records = {};
+    members.forEach((member) => {
+      const status = attendanceRecords[member.email] || "absent";
+      records[member.email] = {
+        status,
+        markedAt: Timestamp.now(),
+      };
+    });
+
+    try {
+      await setDoc(doc(db, "attendance", selectedAttendanceRehearsalId), {
+        rehearsalId: selectedAttendanceRehearsalId,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser?.email || "Admin",
+        records,
+      });
+      setAttendanceStatus("Attendance roll authorized successfully.");
+    } catch (error) {
+      setAttendanceStatus(error.message || "Failed to authorize attendance.");
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  }
 
   useEffect(() => {
     if (!db) return undefined;
@@ -134,7 +205,7 @@ export default function AdminPage() {
   }
 
   function updateRehearsalField(field, value) {
-    setRehearsalForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setRehearsalForm((currentForm) => ({ ...currentForm, [field]: value })); 
   }
 
   async function handleAddMember(event) {
@@ -147,7 +218,6 @@ export default function AdminPage() {
     }
 
     setIsSavingMember(true);
-
     try {
       const email = normalizeEmail(memberForm.email);
       const credential = await createUserWithEmailAndPassword(
@@ -451,6 +521,107 @@ export default function AdminPage() {
             </button>
           ) : null}
         </form>
+      </section>
+
+      <section className="admin-attendance-section">
+        <article className="admin-list-panel attendance-manager-panel">
+          <div className="attendance-header-row">
+            <h2>Stage Manager Attendance Sheet</h2>
+            <div className="rehearsal-dropdown-block">
+              <label htmlFor="attendance-rehearsal-select">Select Rehearsal Call:</label>
+              <select
+                id="attendance-rehearsal-select"
+                onChange={(event) => setSelectedAttendanceRehearsalId(event.target.value)}
+                value={selectedAttendanceRehearsalId}
+              >
+                <option value="">-- Choose a Rehearsal Date --</option>
+                {rehearsals.map((rehearsal) => (
+                  <option key={rehearsal.id} value={rehearsal.id}>
+                    {rehearsal.title} ({formatDateTime(rehearsal.rehearsalAt)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selectedAttendanceRehearsalId ? (
+            <form className="attendance-form-sheet" onSubmit={handleSaveAttendance}>
+              <div className="attendance-actions-bar">
+                <button
+                  type="button"
+                  className="bulk-action-btn"
+                  onClick={() => {
+                    const records = {};
+                    members.forEach((m) => { records[m.email] = "present"; });
+                    setAttendanceRecords(records);
+                  }}
+                >
+                  Mark All Present
+                </button>
+                <button
+                  type="button"
+                  className="bulk-action-btn"
+                  onClick={() => {
+                    const records = {};
+                    members.forEach((m) => { records[m.email] = "absent"; });
+                    setAttendanceRecords(records);
+                  }}
+                >
+                  Mark All Absent
+                </button>
+              </div>
+
+              <div className="attendance-members-list">
+                {members.map((member) => {
+                  const status = attendanceRecords[member.email] || "absent";
+                  return (
+                    <div className="attendance-member-row" key={member.email}>
+                      <div className="member-details">
+                        <span className="member-email">{member.email}</span>
+                        <span className="member-role" data-role={member.role}>{member.role}</span>
+                      </div>
+                      <div className="status-toggle-group">
+                        <button
+                          type="button"
+                          className={`status-btn present ${status === "present" ? "active" : ""}`}
+                          onClick={() => handleToggleStatus(member.email, "present")}
+                        >
+                          Present
+                        </button>
+                        <button
+                          type="button"
+                          className={`status-btn absent ${status === "absent" ? "active" : ""}`}
+                          onClick={() => handleToggleStatus(member.email, "absent")}
+                        >
+                          Absent
+                        </button>
+                        <button
+                          type="button"
+                          className={`status-btn late ${status === "late" ? "active" : ""}`}
+                          onClick={() => handleToggleStatus(member.email, "late")}
+                        >
+                          Late
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {attendanceStatus ? (
+                <p className={`form-status-alert ${attendanceStatus.includes("successfully") ? "success" : "error"}`}>
+                  {attendanceStatus}
+                </p>
+              ) : null}
+
+              <button className="admin-submit-btn attendance-save-btn" disabled={isSavingAttendance} type="submit">
+                {isSavingAttendance ? "Authorizing Attendance Sheet..." : "Authorize Attendance Sheet"}
+              </button>
+            </form>
+          ) : (
+            <p className="empty-state">Select a rehearsal date from the dropdown to start logging attendance.</p>
+          )}
+        </article>
       </section>
 
       <section className="admin-list-grid">
