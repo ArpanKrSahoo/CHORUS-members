@@ -2281,6 +2281,54 @@ textarea {
   margin: 0;
 }
 
+.production-director-manager {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.production-director-manager > span {
+  color: rgba(255, 253, 247, 0.66);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.production-director-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.production-director-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  border: 1px solid rgba(240, 199, 68, 0.28);
+  border-radius: 999px;
+  padding: 5px 8px 5px 10px;
+  background: rgba(240, 199, 68, 0.1);
+  color: #f8f1df;
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.production-director-chip button {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(138, 49, 25, 0.85);
+  color: #fff8e6;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.production-director-manager select {
+  max-width: 360px;
+}
+
 .rehearsal-time-label {
   color: #f0c744 !important;
   font-weight: 700;
@@ -2498,6 +2546,27 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.attendance-rehearsal-summary {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(240, 199, 68, 0.22);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(240, 199, 68, 0.08);
+  color: rgba(255, 253, 247, 0.78);
+}
+
+.attendance-rehearsal-summary strong {
+  color: #fffdf9;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.attendance-rehearsal-summary small {
+  color: rgba(255, 253, 247, 0.68);
+  font-weight: 700;
 }
 
 .attendance-actions-bar {
@@ -2755,14 +2824,6 @@ textarea {
   background: linear-gradient(90deg, #8a3119 0%, #d9bd73 100%);
   transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 10px rgba(240, 199, 68, 0.2);
-}
-
-.attendance-disclaimer {
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: rgba(255, 253, 247, 0.45);
-  margin: 0;
-  font-style: italic;
 }
 
 /* Responsive updates for Attendance */

@@ -133,14 +133,32 @@ service cloud.firestore {
         && request.resource.data.notes.size() <= 200;
     }
 
-    function isValidAttendance() {
+    function keepsProductionDirectorsUnchanged() {
+      return request.resource.data.directorEmails == resource.data.directorEmails;
+    }
+
+    function isValidAttendanceRehearsal(rehearsalId) {
+      return request.resource.data.rehearsal is map
+        && request.resource.data.rehearsal.keys().hasOnly([
+          "id",
+          "rehearsalAt",
+          "title"
+        ])
+        && request.resource.data.rehearsal.id == rehearsalId
+        && request.resource.data.rehearsal.rehearsalAt is timestamp
+        && isText(request.resource.data.rehearsal.title, 160);
+    }
+
+    function isValidAttendance(rehearsalId) {
       return request.resource.data.keys().hasOnly([
           "records",
+          "rehearsal",
           "rehearsalId",
           "updatedAt",
           "updatedBy"
         ])
         && isText(request.resource.data.rehearsalId, 128)
+        && isValidAttendanceRehearsal(rehearsalId)
         && request.resource.data.records is map
         && request.resource.data.updatedAt is timestamp
         && isText(request.resource.data.updatedBy, 160);
@@ -165,7 +183,10 @@ service cloud.firestore {
 
     match /rehearsals/{rehearsalId} {
       allow read: if isSignedIn();
-      allow create, update: if isAdmin() && isValidRehearsal();
+      allow create: if isAdmin() && isValidRehearsal();
+      allow update: if isAdmin()
+        && isValidRehearsal()
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isAdmin();
     }
 
@@ -173,7 +194,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isAdmin()
         && request.resource.data.rehearsalId == rehearsalId
-        && isValidAttendance();
+        && isValidAttendance(rehearsalId);
       allow delete: if isAdmin();
     }
 
@@ -189,7 +210,7 @@ service cloud.firestore {
         && (
           isAdmin()
           || isAssignedProductionDirector(productionId)
-          && request.resource.data.directorEmails == resource.data.directorEmails
+          && keepsProductionDirectorsUnchanged()
         );
       allow delete: if isAdmin() || isAssignedProductionDirector(productionId);
     }

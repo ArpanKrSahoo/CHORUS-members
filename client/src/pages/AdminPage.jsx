@@ -7,12 +7,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { PREDEFINED_ADMIN_EMAILS } from "../constants/adminEmails";
 import { db, secondaryAuth } from "../lib/firebase";
@@ -83,6 +85,10 @@ function getProductionRoles(form) {
     }));
 }
 
+function getUniqueDirectorEmails(emails) {
+  return Array.from(new Set(emails.map(normalizeEmail).filter(Boolean)));
+}
+
 function canManageProduction(production, currentUser, isAdmin) {
   if (isAdmin) return true;
   if (!currentUser?.email) return false;
@@ -123,12 +129,19 @@ export default function AdminPage() {
 
   const [selectedAttendanceRehearsalId, setSelectedAttendanceRehearsalId] = useState("");
   const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [savedAttendanceSheet, setSavedAttendanceSheet] = useState(null);
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
   const [attendanceStatus, setAttendanceStatus] = useState("");
+
+  const selectedAttendanceRehearsal = useMemo(
+    () => rehearsals.find((rehearsal) => rehearsal.id === selectedAttendanceRehearsalId) || null,
+    [rehearsals, selectedAttendanceRehearsalId],
+  );
 
   useEffect(() => {
     if (!db || !selectedAttendanceRehearsalId) {
       setAttendanceRecords({});
+      setSavedAttendanceSheet(null);
       return undefined;
     }
 
@@ -143,8 +156,10 @@ export default function AdminPage() {
           });
         }
         setAttendanceRecords(records);
+        setSavedAttendanceSheet(data);
       } else {
         setAttendanceRecords({});
+        setSavedAttendanceSheet(null);
       }
     });
   }, [selectedAttendanceRehearsalId]);
@@ -170,25 +185,41 @@ export default function AdminPage() {
       return;
     }
 
+    if (!selectedAttendanceRehearsal?.title || !selectedAttendanceRehearsal?.rehearsalAt) {
+      setAttendanceStatus("Selected rehearsal details are missing. Please update the rehearsal first.");
+      return;
+    }
+
     setIsSavingAttendance(true);
 
     const records = {};
     members.forEach((member) => {
       const status = attendanceRecords[member.email] || "absent";
+      const savedRecord = savedAttendanceSheet?.records?.[member.email];
+      const markedAt =
+        savedRecord?.status === status && savedRecord?.markedAt
+          ? savedRecord.markedAt
+          : Timestamp.now();
+
       records[member.email] = {
         status,
-        markedAt: Timestamp.now(),
+        markedAt,
       };
     });
 
     try {
       await setDoc(doc(db, "attendance", selectedAttendanceRehearsalId), {
         rehearsalId: selectedAttendanceRehearsalId,
+        rehearsal: {
+          id: selectedAttendanceRehearsalId,
+          title: selectedAttendanceRehearsal.title,
+          rehearsalAt: selectedAttendanceRehearsal.rehearsalAt,
+        },
         updatedAt: serverTimestamp(),
-        updatedBy: currentUser?.email || "Admin",
+        updatedBy: normalizeEmail(currentUser?.email || "admin"),
         records,
       });
-      setAttendanceStatus("Attendance roll authorized successfully.");
+      setAttendanceStatus("Attendance sheet saved successfully.");
     } catch (error) {
       setAttendanceStatus(error.message || "Failed to authorize attendance.");
     } finally {
@@ -415,17 +446,41 @@ export default function AdminPage() {
 
     setIsSavingRehearsal(true);
 
+    const rehearsalDate = new Date(rehearsalForm.rehearsalAt);
+    if (Number.isNaN(rehearsalDate.getTime())) {
+      setRehearsalStatus("Choose a valid rehearsal date and time.");
+      setIsSavingRehearsal(false);
+      return;
+    }
+
     const rehearsalPayload = {
       location: rehearsalForm.location.trim(),
       note: rehearsalForm.note.trim(),
-      rehearsalAt: Timestamp.fromDate(new Date(rehearsalForm.rehearsalAt)),
+      rehearsalAt: Timestamp.fromDate(rehearsalDate),
       title: rehearsalForm.title.trim(),
       updatedAt: serverTimestamp(),
     };
 
     try {
       if (editingRehearsalId) {
-        await updateDoc(doc(db, "rehearsals", editingRehearsalId), rehearsalPayload);
+        const batch = writeBatch(db);
+        batch.update(doc(db, "rehearsals", editingRehearsalId), rehearsalPayload);
+
+        const attendanceRef = doc(db, "attendance", editingRehearsalId);
+        const attendanceSnapshot = await getDoc(attendanceRef);
+        if (attendanceSnapshot.exists()) {
+          batch.update(attendanceRef, {
+            rehearsal: {
+              id: editingRehearsalId,
+              title: rehearsalPayload.title,
+              rehearsalAt: rehearsalPayload.rehearsalAt,
+            },
+            updatedAt: serverTimestamp(),
+            updatedBy: normalizeEmail(currentUser?.email || "admin"),
+          });
+        }
+
+        await batch.commit();
         setRehearsalStatus("Rehearsal updated.");
       } else {
         await addDoc(collection(db, "rehearsals"), {
@@ -457,7 +512,13 @@ export default function AdminPage() {
     const selectedDirectors = isAdmin
       ? productionForm.directorEmails
       : [currentEmail];
-    const directorEmails = Array.from(new Set(selectedDirectors.map(normalizeEmail)));
+    const directorEmails = getUniqueDirectorEmails(selectedDirectors);
+
+    if (directorEmails.length === 0) {
+      setProductionStatus("Attach at least one director before saving the production.");
+      return;
+    }
+
     const productionPayload = {
       directorEmails,
       roles: getProductionRoles(productionForm),
@@ -540,6 +601,50 @@ export default function AdminPage() {
   async function deleteProduction(production) {
     if (!db || !canManageProduction(production, currentUser, isAdmin)) return;
     await deleteDoc(doc(db, "productions", production.id));
+  }
+
+  async function addProductionDirector(production, directorEmail) {
+    if (!db || !isAdmin || !directorEmail) return;
+    setProductionStatus("");
+
+    const directorEmails = getUniqueDirectorEmails([
+      ...(production.directorEmails ?? []),
+      directorEmail,
+    ]);
+
+    try {
+      await updateDoc(doc(db, "productions", production.id), {
+        directorEmails,
+        updatedAt: serverTimestamp(),
+      });
+      setProductionStatus("Production director added.");
+    } catch (error) {
+      setProductionStatus(getStatusMessage(error, "Unable to add production director."));
+    }
+  }
+
+  async function removeProductionDirector(production, directorEmail) {
+    if (!db || !isAdmin || !directorEmail) return;
+    setProductionStatus("");
+
+    const directorEmails = getUniqueDirectorEmails(
+      (production.directorEmails ?? []).filter((email) => normalizeEmail(email) !== directorEmail),
+    );
+
+    if (directorEmails.length === 0) {
+      setProductionStatus("A production must keep at least one attached director.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "productions", production.id), {
+        directorEmails,
+        updatedAt: serverTimestamp(),
+      });
+      setProductionStatus("Production director updated.");
+    } catch (error) {
+      setProductionStatus(getStatusMessage(error, "Unable to update production directors."));
+    }
   }
 
   async function addProductionRole(production) {
@@ -917,6 +1022,13 @@ export default function AdminPage() {
 
             {selectedAttendanceRehearsalId ? (
               <form className="attendance-form-sheet" onSubmit={handleSaveAttendance}>
+                {selectedAttendanceRehearsal ? (
+                  <div className="attendance-rehearsal-summary">
+                    <strong>{selectedAttendanceRehearsal.title}</strong>
+                    <small>{formatDateTime(selectedAttendanceRehearsal.rehearsalAt)}</small>
+                  </div>
+                ) : null}
+
                 <div className="attendance-actions-bar">
                   <button
                     type="button"
@@ -986,7 +1098,11 @@ export default function AdminPage() {
                 ) : null}
 
                 <button className="admin-submit-btn attendance-save-btn" disabled={isSavingAttendance} type="submit">
-                  {isSavingAttendance ? "Authorizing Attendance Sheet..." : "Authorize Attendance Sheet"}
+                  {isSavingAttendance
+                    ? "Saving Attendance Sheet..."
+                    : savedAttendanceSheet
+                      ? "Update Attendance Sheet"
+                      : "Save Attendance Sheet"}
                 </button>
               </form>
             ) : (
@@ -1077,6 +1193,10 @@ export default function AdminPage() {
           <div className="card-list admin-card-list">
             {productions.map((production) => {
               const canEditProduction = canManageProduction(production, currentUser, isAdmin);
+              const attachedDirectorEmails = getUniqueDirectorEmails(production.directorEmails ?? []);
+              const availableDirectorOptions = directorOptions.filter(
+                (member) => !attachedDirectorEmails.includes(normalizeEmail(member.email)),
+              );
               const roleDraft = roleDrafts[production.id] ?? {
                 description: "",
                 memberEmail: "",
@@ -1086,7 +1206,42 @@ export default function AdminPage() {
                 <div className="editable-item rehearsal-admin-card" key={production.id}>
                   <div className="item-info">
                     <strong>{production.title}</strong>
-                    <p>Director(s): {(production.directorEmails ?? []).join(", ")}</p>
+                    <div className="production-director-manager">
+                      <span>Director(s)</span>
+                      <div className="production-director-list">
+                        {attachedDirectorEmails.map((directorEmail) => (
+                          <span className="production-director-chip" key={directorEmail}>
+                            {directorEmail}
+                            {isAdmin && attachedDirectorEmails.length > 1 ? (
+                              <button
+                                aria-label={`Remove ${directorEmail} from ${production.title}`}
+                                onClick={() => removeProductionDirector(production, directorEmail)}
+                                type="button"
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                      {isAdmin ? (
+                        <select
+                          aria-label={`Add director to ${production.title}`}
+                          onChange={(event) => {
+                            addProductionDirector(production, event.target.value);
+                            event.target.value = "";
+                          }}
+                          value=""
+                        >
+                          <option value="">Add director</option>
+                          {availableDirectorOptions.map((member) => (
+                            <option key={member.email} value={member.email}>
+                              {member.email}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                    </div>
                     {(production.roles ?? []).map((role, index) => (
                       <p key={`${role.description}-${role.memberEmail}`}>
                         {role.description}: {role.memberEmail}
