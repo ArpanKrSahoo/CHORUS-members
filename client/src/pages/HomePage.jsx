@@ -162,10 +162,6 @@ export default function HomePage() {
                 style={{ width: `${attendanceStats.percent}%` }}
               ></div>
             </div>
-            
-            <p className="attendance-disclaimer">
-              * Attendance sheet is authorized and logged by the stage manager after every rehearsal.
-            </p>
           </div>
         </div>
       </section>

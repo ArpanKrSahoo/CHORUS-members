@@ -30,6 +30,20 @@ service cloud.firestore {
       return isPredefinedAdmin() || memberRole() == "admin";
     }
 
+    function isDirector() {
+      return memberRole() == "director";
+    }
+
+    function canManageLiveContent() {
+      return isAdmin() || isDirector();
+    }
+
+    function isAssignedProductionDirector(productionId) {
+      return isDirector()
+        && exists(/databases/$(database)/documents/productions/$(productionId))
+        && get(/databases/$(database)/documents/productions/$(productionId)).data.directorEmails.hasAny([authEmail()]);
+    }
+
     function isText(value, maxLength) {
       return value is string
         && value.size() > 0
@@ -44,16 +58,23 @@ service cloud.firestore {
         );
     }
 
+    function hasOptionalTimestamp(fieldName) {
+      return !request.resource.data.keys().hasAny([fieldName])
+        || request.resource.data.get(fieldName, request.time) is timestamp;
+    }
+
     function isValidMember(memberEmail) {
       return request.resource.data.keys().hasOnly([
           "authUid",
           "createdAt",
           "email",
-          "role"
+          "role",
+          "updatedAt"
         ])
         && request.resource.data.email == memberEmail
         && isText(request.resource.data.authUid, 128)
         && request.resource.data.createdAt is timestamp
+        && hasOptionalTimestamp("updatedAt")
         && request.resource.data.role in ["member", "admin", "director"];
     }
 
@@ -87,22 +108,111 @@ service cloud.firestore {
         && hasOptionalText("note", 1200);
     }
 
+    function isValidProductionRoles() {
+      return request.resource.data.roles is list
+        && request.resource.data.roles.size() <= 300;
+    }
+
+    function isValidProduction() {
+      return request.resource.data.keys().hasOnly([
+          "createdAt",
+          "directorEmails",
+          "notes",
+          "roles",
+          "title",
+          "updatedAt"
+        ])
+        && isText(request.resource.data.title, 160)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.directorEmails is list
+        && request.resource.data.directorEmails.size() > 0
+        && request.resource.data.directorEmails.size() <= 12
+        && isValidProductionRoles()
+        && request.resource.data.notes is list
+        && request.resource.data.notes.size() <= 200;
+    }
+
+    function keepsProductionDirectorsUnchanged() {
+      return request.resource.data.directorEmails == resource.data.directorEmails;
+    }
+
+    function isValidAttendanceRehearsal(rehearsalId) {
+      return request.resource.data.rehearsal is map
+        && request.resource.data.rehearsal.keys().hasOnly([
+          "id",
+          "rehearsalAt",
+          "title"
+        ])
+        && request.resource.data.rehearsal.id == rehearsalId
+        && request.resource.data.rehearsal.rehearsalAt is timestamp
+        && isText(request.resource.data.rehearsal.title, 160);
+    }
+
+    function isValidAttendance(rehearsalId) {
+      return request.resource.data.keys().hasOnly([
+          "records",
+          "rehearsal",
+          "rehearsalId",
+          "updatedAt",
+          "updatedBy"
+        ])
+        && isText(request.resource.data.rehearsalId, 128)
+        && isValidAttendanceRehearsal(rehearsalId)
+        && request.resource.data.records is map
+        && request.resource.data.updatedAt is timestamp
+        && isText(request.resource.data.updatedBy, 160);
+    }
+
     match /members/{memberEmail} {
-      allow read: if isSignedIn() && (authEmail() == memberEmail || isAdmin());
-      allow create, update: if isAdmin() && isValidMember(memberEmail);
+      allow read: if isSignedIn() && (authEmail() == memberEmail || isAdmin() || isDirector());
+      allow create: if (
+          isAdmin()
+          || authEmail() == memberEmail && request.resource.data.role == "member"
+        )
+        && isValidMember(memberEmail);
+      allow update: if isAdmin() && isValidMember(memberEmail);
       allow delete: if isAdmin();
     }
 
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow create, update: if isAdmin() && isValidNotice();
-      allow delete: if isAdmin();
+      allow create, update: if canManageLiveContent() && isValidNotice();
+      allow delete: if canManageLiveContent();
     }
 
     match /rehearsals/{rehearsalId} {
       allow read: if isSignedIn();
-      allow create, update: if isAdmin() && isValidRehearsal();
+      allow create: if isAdmin() && isValidRehearsal();
+      allow update: if isAdmin()
+        && isValidRehearsal()
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isAdmin();
+    }
+
+    match /attendance/{rehearsalId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin()
+        && request.resource.data.rehearsalId == rehearsalId
+        && isValidAttendance(rehearsalId);
+      allow delete: if isAdmin();
+    }
+
+    match /productions/{productionId} {
+      allow read: if isSignedIn();
+      allow create: if isValidProduction()
+        && (
+          isAdmin()
+          || isDirector()
+          && request.resource.data.directorEmails == [authEmail()]
+        );
+      allow update: if isValidProduction()
+        && (
+          isAdmin()
+          || isAssignedProductionDirector(productionId)
+          && keepsProductionDirectorsUnchanged()
+        );
+      allow delete: if isAdmin() || isAssignedProductionDirector(productionId);
     }
 
     match /{document=**} {
