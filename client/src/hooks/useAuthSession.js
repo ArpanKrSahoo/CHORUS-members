@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { isPredefinedAdminEmail } from "../constants/adminEmails";
 import { auth, db } from "../lib/firebase";
 
@@ -22,9 +22,18 @@ async function loadUserRole(user) {
   const memberRef = doc(db, "members", normalizeEmail(user.email));
   const memberSnapshot = await getDoc(memberRef);
 
-  return memberSnapshot.exists()
-    ? memberSnapshot.data().role ?? DEFAULT_ROLE
-    : DEFAULT_ROLE;
+  if (memberSnapshot.exists()) {
+    return memberSnapshot.data().role ?? DEFAULT_ROLE;
+  }
+
+  await setDoc(memberRef, {
+    authUid: user.uid,
+    createdAt: serverTimestamp(),
+    email: normalizeEmail(user.email),
+    role: DEFAULT_ROLE,
+  });
+
+  return DEFAULT_ROLE;
 }
 
 export function useAuthSession() {
@@ -77,6 +86,7 @@ export function useAuthSession() {
   return {
     currentUser,
     isAdmin: userRole === "admin",
+    isDirector: userRole === "director",
     isAuthReady,
     userRole,
   };

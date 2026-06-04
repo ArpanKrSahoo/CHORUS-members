@@ -18,7 +18,7 @@ const INTRO_DURATION_MS = 1800;
 
 export default function App() {
   const [screenStep, setScreenStep] = useState("loading");
-  const { isAdmin, isAuthReady } = useAuthSession();
+  const { isAdmin, isAuthReady, isDirector } = useAuthSession();
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -50,7 +50,9 @@ export default function App() {
         <Route path="/notices" element={<NoticesPage />} />
         <Route
           path="/admin"
-          element={isAdmin ? <AdminPage /> : <Navigate to="/home" replace />}
+          element={
+            isAdmin || isDirector ? <AdminPage /> : <Navigate to="/home" replace />
+          }
         />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
