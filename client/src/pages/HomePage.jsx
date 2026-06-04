@@ -17,6 +17,38 @@ export default function HomePage() {
   const { currentUser, isAdmin } = useOutletContext();
   const [notices, setNotices] = useState([]);
   const [rehearsals, setRehearsals] = useState([]);
+  const [attendanceSheets, setAttendanceSheets] = useState([]);
+
+  useEffect(() => {
+    if (!db) return undefined;
+
+    const attendanceQuery = query(collection(db, "attendance"));
+    return onSnapshot(attendanceQuery, (snapshot) => {
+      setAttendanceSheets(
+        snapshot.docs.map((doc) => doc.data())
+      );
+    });
+  }, []);
+
+  const attendanceStats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let total = 0;
+
+    attendanceSheets.forEach((sheet) => {
+      const record = sheet.records?.[currentUser?.email];
+      if (record) {
+        total++;
+        if (record.status === "present") present++;
+        else if (record.status === "absent") absent++;
+        else if (record.status === "late") late++;
+      }
+    });
+
+    const percent = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { present, absent, late, total, percent };
+  }, [attendanceSheets, currentUser?.email]);
 
   useEffect(() => {
     if (!db) return undefined;
@@ -95,6 +127,48 @@ export default function HomePage() {
           </button>
         ))}
       </div>
+
+      {/* Attendance Scorecard Card */}
+      <section className="attendance-scorecard-section">
+        <div className="home-preview-card attendance-stats-card">
+          <div className="section-title-row">
+            <h2>আমার উপস্থিতি কার্ড (My Attendance)</h2>
+            <span className="attendance-percentage-tag">{attendanceStats.percent}% Present</span>
+          </div>
+
+          <div className="attendance-stats-content">
+            <div className="attendance-metrics-grid">
+              <div className="metric-box present">
+                <span className="metric-value">{attendanceStats.present}</span>
+                <span className="metric-label">Present Calls</span>
+              </div>
+              <div className="metric-box absent">
+                <span className="metric-value">{attendanceStats.absent}</span>
+                <span className="metric-label">Absent Calls</span>
+              </div>
+              <div className="metric-box late">
+                <span className="metric-value">{attendanceStats.late}</span>
+                <span className="metric-label">Late Calls</span>
+              </div>
+              <div className="metric-box total">
+                <span className="metric-value">{attendanceStats.total}</span>
+                <span className="metric-label">Total Calls</span>
+              </div>
+            </div>
+
+            <div className="attendance-progress-bar-container">
+              <div 
+                className="attendance-progress-fill" 
+                style={{ width: `${attendanceStats.percent}%` }}
+              ></div>
+            </div>
+            
+            <p className="attendance-disclaimer">
+              * Attendance sheet is authorized and logged by the stage manager after every rehearsal.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section className="home-preview-grid" aria-label="Latest updates">
         <article className="home-preview-card">

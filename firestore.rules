@@ -133,6 +133,19 @@ service cloud.firestore {
         && request.resource.data.notes.size() <= 200;
     }
 
+    function isValidAttendance() {
+      return request.resource.data.keys().hasOnly([
+          "records",
+          "rehearsalId",
+          "updatedAt",
+          "updatedBy"
+        ])
+        && isText(request.resource.data.rehearsalId, 128)
+        && request.resource.data.records is map
+        && request.resource.data.updatedAt is timestamp
+        && isText(request.resource.data.updatedBy, 160);
+    }
+
     match /members/{memberEmail} {
       allow read: if isSignedIn() && (authEmail() == memberEmail || isAdmin() || isDirector());
       allow create: if (
@@ -153,6 +166,14 @@ service cloud.firestore {
     match /rehearsals/{rehearsalId} {
       allow read: if isSignedIn();
       allow create, update: if isAdmin() && isValidRehearsal();
+      allow delete: if isAdmin();
+    }
+
+    match /attendance/{rehearsalId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin()
+        && request.resource.data.rehearsalId == rehearsalId
+        && isValidAttendance();
       allow delete: if isAdmin();
     }
 
