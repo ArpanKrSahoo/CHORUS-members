@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import {
   Timestamp,
@@ -100,6 +100,12 @@ function canManageProduction(production, currentUser, isAdmin) {
 export default function AdminPage() {
   const navigate = useNavigate();
   const { currentUser, isAdmin, isDirector } = useOutletContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "members";
+
+  const setActiveTab = (tab) => {
+    setSearchParams({ tab });
+  };
   const canManageWorkspace = isAdmin || isDirector;
   const [memberForm, setMemberForm] = useState(initialMemberForm);
   const [noticeForm, setNoticeForm] = useState(initialNoticeForm);
@@ -742,641 +748,703 @@ export default function AdminPage() {
         </button>
       </header>
 
-      <section className="admin-grid">
-        {isAdmin ? (
-          <form className="admin-form" onSubmit={handleAddMember}>
-            <div className="form-header-row">
-              <h2>Add Member</h2>
-              <span className="form-icon">Member</span>
-            </div>
-            <label>
-              <span>Full Name</span>
-              <input
-                placeholder="e.g. Arpan Kumar Sahoo"
-                onChange={(event) => updateMemberField("name", event.target.value)}
-                required
-                type="text"
-                value={memberForm.name}
-              />
-            </label>
-            <label>
-              <span>Email Address</span>
-              <input
-                autoComplete="email"
-                placeholder="member@chorus.com"
-                onChange={(event) => updateMemberField("email", event.target.value)}
-                required
-                type="email"
-                value={memberForm.email}
-              />
-            </label>
-            <label>
-              <span>Temporary Password</span>
-              <input
-                autoComplete="new-password"
-                placeholder="Min 6 characters"
-                minLength={6}
-                onChange={(event) => updateMemberField("password", event.target.value)}
-                required
-                type="password"
-                value={memberForm.password}
-              />
-            </label>
-            <label>
-              <span>Assigned Role</span>
-              <select
-                onChange={(event) => updateMemberField("role", event.target.value)}
-                value={memberForm.role}
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-                <option value="director">Director</option>
-              </select>
-            </label>
-            {memberStatus ? (
-              <p className={`form-status-alert ${memberStatus.includes("success") || memberStatus.includes("updated") ? "success" : "error"}`}>
-                {memberStatus}
-              </p>
-            ) : null}
-            <button className="admin-submit-btn" disabled={isSavingMember} type="submit">
-              {isSavingMember ? "Adding Member..." : "Add Member"}
-            </button>
-          </form>
-        ) : null}
-
-        <form className="admin-form" onSubmit={handleSaveNotice}>
-          <div className="form-header-row">
-            <h2>{editingNoticeId ? "Edit Notice" : "Add Notice"}</h2>
-            <span className="form-icon">Notice</span>
-          </div>
-          <label>
-            <span>Notice Title</span>
-            <input
-              placeholder="e.g. Schedule Update"
-              onChange={(event) => updateNoticeField("title", event.target.value)}
-              required
-              type="text"
-              value={noticeForm.title}
-            />
-          </label>
-          <label>
-            <span>Notice Body</span>
-            <textarea
-              placeholder="Type announcement details here..."
-              onChange={(event) => updateNoticeField("body", event.target.value)}
-              required
-              rows={5}
-              value={noticeForm.body}
-            />
-          </label>
-          {noticeStatus ? (
-            <p className={`form-status-alert ${noticeStatus.includes("published") || noticeStatus.includes("updated") ? "success" : "error"}`}>
-              {noticeStatus}
-            </p>
-          ) : null}
-          <button className="admin-submit-btn" disabled={isSavingNotice} type="submit">
-            {isSavingNotice ? "Saving..." : "Save Notice"}
+      {/* Tabs Menu */}
+      <nav className="admin-tab-bar" aria-label="Admin Sections">
+        <button
+          className={`admin-tab-btn ${activeTab === "members" ? "active" : ""}`}
+          onClick={() => setActiveTab("members")}
+          type="button"
+        >
+          👤 Members
+        </button>
+        <button
+          className={`admin-tab-btn ${activeTab === "notices" ? "active" : ""}`}
+          onClick={() => setActiveTab("notices")}
+          type="button"
+        >
+          📢 Notices
+        </button>
+        {isAdmin && (
+          <button
+            className={`admin-tab-btn ${activeTab === "rehearsals" ? "active" : ""}`}
+            onClick={() => setActiveTab("rehearsals")}
+            type="button"
+          >
+            ⏱️ Rehearsals
           </button>
-          {editingNoticeId ? (
-            <button
-              className="admin-cancel-btn"
-              onClick={() => {
-                setEditingNoticeId("");
-                setNoticeForm(initialNoticeForm);
-              }}
-              type="button"
-            >
-              Cancel Edit
-            </button>
-          ) : null}
-        </form>
-
-        {isAdmin ? (
-          <form className="admin-form" onSubmit={handleSaveRehearsal}>
-            <div className="form-header-row">
-              <h2>{editingRehearsalId ? "Edit Rehearsal" : "Add Rehearsal"}</h2>
-              <span className="form-icon">Rehearsal</span>
-            </div>
-            <label>
-              <span>Rehearsal Title</span>
-              <input
-                placeholder="e.g. Act I Run-through"
-                onChange={(event) => updateRehearsalField("title", event.target.value)}
-                required
-                type="text"
-                value={rehearsalForm.title}
-              />
-            </label>
-            <label>
-              <span>Date and Time</span>
-              <input
-                onChange={(event) => updateRehearsalField("rehearsalAt", event.target.value)}
-                required
-                type="datetime-local"
-                value={rehearsalForm.rehearsalAt}
-              />
-            </label>
-            <label>
-              <span>Location / Stage Room</span>
-              <input
-                placeholder="e.g. Stage Room A"
-                onChange={(event) => updateRehearsalField("location", event.target.value)}
-                type="text"
-                value={rehearsalForm.location}
-              />
-            </label>
-            <label>
-              <span>Director's Instruction Note</span>
-              <textarea
-                placeholder="e.g. Actors in scene 1-3 must prepare..."
-                onChange={(event) => updateRehearsalField("note", event.target.value)}
-                rows={4}
-                value={rehearsalForm.note}
-              />
-            </label>
-            {rehearsalStatus ? (
-              <p className={`form-status-alert ${rehearsalStatus.includes("added") || rehearsalStatus.includes("updated") ? "success" : "error"}`}>
-                {rehearsalStatus}
-              </p>
-            ) : null}
-            <button className="admin-submit-btn" disabled={isSavingRehearsal} type="submit">
-              {isSavingRehearsal ? "Saving..." : "Save Rehearsal"}
-            </button>
-            {editingRehearsalId ? (
-              <button
-                className="admin-cancel-btn"
-                onClick={() => {
-                  setEditingRehearsalId("");
-                  setRehearsalForm(initialRehearsalForm);
-                }}
-                type="button"
-              >
-                Cancel Edit
-              </button>
-            ) : null}
-          </form>
-        ) : null}
-
-        <form className="admin-form" onSubmit={handleSaveProduction}>
-          <div className="form-header-row">
-            <h2>{editingProductionId ? "Edit Production" : "Add Production"}</h2>
-            <span className="form-icon">Production</span>
-          </div>
-          <label>
-            <span>Drama Name</span>
-            <input
-              placeholder="e.g. Char Adhyay"
-              onChange={(event) => updateProductionField("title", event.target.value)}
-              required
-              type="text"
-              value={productionForm.title}
-            />
-          </label>
-          {isAdmin ? (
-            <label>
-              <span>Attached Director(s)</span>
-              <select
-                multiple
-                onChange={(event) =>
-                  updateProductionField(
-                    "directorEmails",
-                    Array.from(event.target.selectedOptions, (option) => option.value),
-                  )
-                }
-                required
-                value={productionForm.directorEmails}
-              >
-                {directorOptions.map((member) => (
-                  <option key={member.email} value={member.email}>
-                    {member.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="form-status-alert success">
-              This production will be attached to {currentUser?.email}.
-            </p>
-          )}
-          <div className="card-list admin-card-list">
-            <span>Cast / Role List</span>
-            {productionForm.roles.map((role, index) => (
-              <div className="editable-item" key={`production-form-role-${index}`}>
-                <div className="item-info">
-                  <label>
-                    <span>Role Description</span>
-                    <input
-                      placeholder="e.g. Father of the main character"
-                      onChange={(event) =>
-                        updateProductionFormRole(index, "description", event.target.value)
-                      }
-                      type="text"
-                      value={role.description}
-                    />
-                  </label>
-                  <label>
-                    <span>Member Playing Role</span>
-                    <select
-                      onChange={(event) =>
-                        updateProductionFormRole(index, "memberEmail", event.target.value)
-                      }
-                      value={role.memberEmail}
-                    >
-                      <option value="">Select member</option>
-                      {members.map((member) => (
-                        <option key={member.email} value={member.email}>
-                          {member.email}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="item-actions">
-                  <button
-                    className="item-delete-btn"
-                    onClick={() => removeProductionFormRole(index)}
-                    type="button"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button className="item-edit-btn" onClick={addProductionFormRole} type="button">
-              Add Cast Role
-            </button>
-          </div>
-          {productionStatus ? (
-            <p className={`form-status-alert ${productionStatus.includes("added") || productionStatus.includes("updated") ? "success" : "error"}`}>
-              {productionStatus}
-            </p>
-          ) : null}
-          <button className="admin-submit-btn" disabled={isSavingProduction} type="submit">
-            {isSavingProduction ? "Saving..." : "Save Production"}
+        )}
+        <button
+          className={`admin-tab-btn ${activeTab === "productions" ? "active" : ""}`}
+          onClick={() => setActiveTab("productions")}
+          type="button"
+        >
+          🎭 Productions
+        </button>
+        {isAdmin && (
+          <button
+            className={`admin-tab-btn ${activeTab === "attendance" ? "active" : ""}`}
+            onClick={() => setActiveTab("attendance")}
+            type="button"
+          >
+            📋 Attendance Sheet
           </button>
-          {editingProductionId ? (
-            <button
-              className="admin-cancel-btn"
-              onClick={() => {
-                setEditingProductionId("");
-                setProductionForm(initialProductionForm);
-              }}
-              type="button"
-            >
-              Cancel Edit
-            </button>
-          ) : null}
-        </form>
-      </section>
+        )}
+        {isAdmin && (
+          <button
+            className="admin-tab-btn payments-tab-btn"
+            onClick={() => navigate("/admin/payments")}
+            type="button"
+          >
+            💳 Payments Registry
+          </button>
+        )}
+      </nav>
 
-      {isAdmin ? (
-        <section className="admin-attendance-section">
-          <article className="admin-list-panel attendance-manager-panel">
-            <div className="attendance-header-row">
-              <h2>Stage Manager Attendance Sheet</h2>
-              <div className="rehearsal-dropdown-block">
-                <label htmlFor="attendance-rehearsal-select">Select Rehearsal Call:</label>
-                <select
-                  id="attendance-rehearsal-select"
-                  onChange={(event) => setSelectedAttendanceRehearsalId(event.target.value)}
-                  value={selectedAttendanceRehearsalId}
-                >
-                  <option value="">-- Choose a Rehearsal Date --</option>
-                  {rehearsals.map((rehearsal) => (
-                    <option key={rehearsal.id} value={rehearsal.id}>
-                      {rehearsal.title} ({formatDateTime(rehearsal.rehearsalAt)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {selectedAttendanceRehearsalId ? (
-              <form className="attendance-form-sheet" onSubmit={handleSaveAttendance}>
-                {selectedAttendanceRehearsal ? (
-                  <div className="attendance-rehearsal-summary">
-                    <strong>{selectedAttendanceRehearsal.title}</strong>
-                    <small>{formatDateTime(selectedAttendanceRehearsal.rehearsalAt)}</small>
-                  </div>
-                ) : null}
-
-                <div className="attendance-actions-bar">
-                  <button
-                    type="button"
-                    className="bulk-action-btn"
-                    onClick={() => {
-                      const records = {};
-                      members.forEach((m) => { records[m.email] = "present"; });
-                      setAttendanceRecords(records);
-                    }}
-                  >
-                    Mark All Present
-                  </button>
-                  <button
-                    type="button"
-                    className="bulk-action-btn"
-                    onClick={() => {
-                      const records = {};
-                      members.forEach((m) => { records[m.email] = "absent"; });
-                      setAttendanceRecords(records);
-                    }}
-                  >
-                    Mark All Absent
-                  </button>
+      <div className="admin-tab-content">
+        {activeTab === "members" && (
+          <div className="admin-members-tab-container">
+            {isAdmin ? (
+              <form className="admin-form add-member-form-full" onSubmit={handleAddMember}>
+                <div className="form-header-row">
+                  <h2>Add Member</h2>
+                  <span className="form-icon">Member</span>
                 </div>
-
-                <div className="attendance-members-list">
-                  {members.map((member) => {
-                    const status = attendanceRecords[member.email] || "absent";
-                    return (
-                      <div className="attendance-member-row" key={member.email}>
-                        <div className="member-details">
-                          <span className="member-email">{member.email}</span>
-                          <span className="member-role" data-role={member.role}>{member.role}</span>
-                        </div>
-                        <div className="status-toggle-group">
-                          <button
-                            type="button"
-                            className={`status-btn present ${status === "present" ? "active" : ""}`}
-                            onClick={() => handleToggleStatus(member.email, "present")}
-                          >
-                            Present
-                          </button>
-                          <button
-                            type="button"
-                            className={`status-btn absent ${status === "absent" ? "active" : ""}`}
-                            onClick={() => handleToggleStatus(member.email, "absent")}
-                          >
-                            Absent
-                          </button>
-                          <button
-                            type="button"
-                            className={`status-btn late ${status === "late" ? "active" : ""}`}
-                            onClick={() => handleToggleStatus(member.email, "late")}
-                          >
-                            Late
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {attendanceStatus ? (
-                  <p className={`form-status-alert ${attendanceStatus.includes("successfully") ? "success" : "error"}`}>
-                    {attendanceStatus}
+                <label>
+                  <span>Full Name</span>
+                  <input
+                    placeholder="e.g. Arpan Kumar Sahoo"
+                    onChange={(event) => updateMemberField("name", event.target.value)}
+                    required
+                    type="text"
+                    value={memberForm.name}
+                  />
+                </label>
+                <label>
+                  <span>Email Address</span>
+                  <input
+                    autoComplete="email"
+                    placeholder="member@chorus.com"
+                    onChange={(event) => updateMemberField("email", event.target.value)}
+                    required
+                    type="email"
+                    value={memberForm.email}
+                  />
+                </label>
+                <label>
+                  <span>Temporary Password</span>
+                  <input
+                    autoComplete="new-password"
+                    placeholder="Min 6 characters"
+                    minLength={6}
+                    onChange={(event) => updateMemberField("password", event.target.value)}
+                    required
+                    type="password"
+                    value={memberForm.password}
+                  />
+                </label>
+                <label>
+                  <span>Assigned Role</span>
+                  <select
+                    onChange={(event) => updateMemberField("role", event.target.value)}
+                    value={memberForm.role}
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                    <option value="director">Director</option>
+                  </select>
+                </label>
+                {memberStatus ? (
+                  <p className={`form-status-alert ${memberStatus.includes("success") || memberStatus.includes("updated") ? "success" : "error"}`}>
+                    {memberStatus}
                   </p>
                 ) : null}
-
-                <button className="admin-submit-btn attendance-save-btn" disabled={isSavingAttendance} type="submit">
-                  {isSavingAttendance
-                    ? "Saving Attendance Sheet..."
-                    : savedAttendanceSheet
-                      ? "Update Attendance Sheet"
-                      : "Save Attendance Sheet"}
+                <button className="admin-submit-btn" disabled={isSavingMember} type="submit">
+                  {isSavingMember ? "Adding Member..." : "Add Member"}
                 </button>
               </form>
-            ) : (
-              <p className="empty-state">Select a rehearsal date from the dropdown to start logging attendance.</p>
-            )}
-          </article>
-        </section>
-      ) : null}
+            ) : null}
 
-      <section className="admin-list-grid">
-        {isAdmin ? (
-          <article className="admin-list-panel">
-            <h2>Registry Directory</h2>
-            <div className="table-list">
-              {members.map((member) => (
-                <div className="table-row member-registry-row" key={member.email}>
-                  <input
-                    type="text"
-                    className="member-name-input"
-                    placeholder="Set Proper Name"
-                    disabled={member.source === "Predefined admin"}
-                    onBlur={(event) => handleUpdateMemberName(member.email, event.target.value)}
-                    defaultValue={member.name || ""}
-                  />
-                  <span className="member-email-col">{member.email}</span>
-                  <select
-                    className="member-role-badge"
-                    disabled={member.source === "Predefined admin"}
-                    onChange={(event) => handleUpdateMemberRole(member.email, event.target.value)}
-                    value={member.role}
-                  >
-                    <option value="member">member</option>
-                    <option value="admin">admin</option>
-                    <option value="director">director</option>
-                  </select>
-                  <small className="member-source-label">{member.source}</small>
+            {isAdmin ? (
+              <article className="admin-list-panel registry-directory-full">
+                <h2>Registry Directory</h2>
+                <div className="table-list">
+                  {members.map((member) => (
+                    <div className="table-row member-registry-row" key={member.email}>
+                      <input
+                        type="text"
+                        className="member-name-input"
+                        placeholder="Set Proper Name"
+                        disabled={member.source === "Predefined admin"}
+                        onBlur={(event) => handleUpdateMemberName(member.email, event.target.value)}
+                        defaultValue={member.name || ""}
+                      />
+                      <span className="member-email-col">{member.email}</span>
+                      <select
+                        className="member-role-badge"
+                        disabled={member.source === "Predefined admin"}
+                        onChange={(event) => handleUpdateMemberRole(member.email, event.target.value)}
+                        value={member.role}
+                      >
+                        <option value="member">member</option>
+                        <option value="admin">admin</option>
+                        <option value="director">director</option>
+                      </select>
+                      <small className="member-source-label">{member.source}</small>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </article>
-        ) : null}
-
-        <article className="admin-list-panel">
-          <h2>Published Notices</h2>
-          <div className="card-list admin-card-list">
-            {notices.map((notice) => (
-              <div className="editable-item notice-admin-card" key={notice.id}>
-                <div className="item-info">
-                  <strong>{notice.title}</strong>
-                  <p>{notice.body}</p>
-                </div>
-                <div className="item-actions">
-                  <button className="item-edit-btn" type="button" onClick={() => startNoticeEdit(notice)}>
-                    Edit
-                  </button>
-                  <button className="item-delete-btn" type="button" onClick={() => deleteNotice(notice.id)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-            {notices.length === 0 ? <p className="empty-state">No notices published yet.</p> : null}
+              </article>
+            ) : null}
           </div>
-        </article>
+        )}
 
-        {isAdmin ? (
-          <article className="admin-list-panel">
-            <h2>Scheduled Rehearsals</h2>
-            <div className="card-list admin-card-list">
-              {rehearsals.map((rehearsal) => (
-                <div className="editable-item rehearsal-admin-card" key={rehearsal.id}>
-                  <div className="item-info">
-                    <strong>{rehearsal.title}</strong>
-                    <p className="rehearsal-time-label">{formatDateTime(rehearsal.rehearsalAt)}</p>
-                    {rehearsal.location ? <p className="rehearsal-location-label">{rehearsal.location}</p> : null}
-                  </div>
-                  <div className="item-actions">
-                    <button className="item-edit-btn" type="button" onClick={() => startRehearsalEdit(rehearsal)}>
-                      Edit
-                    </button>
-                    <button className="item-delete-btn" type="button" onClick={() => deleteRehearsal(rehearsal.id)}>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {rehearsals.length === 0 ? (
-                <p className="empty-state">No rehearsal dates scheduled yet.</p>
+        {activeTab === "notices" && (
+          <div className="admin-tab-grid">
+            <form className="admin-form" onSubmit={handleSaveNotice}>
+              <div className="form-header-row">
+                <h2>{editingNoticeId ? "Edit Notice" : "Add Notice"}</h2>
+                <span className="form-icon">Notice</span>
+              </div>
+              <label>
+                <span>Notice Title</span>
+                <input
+                  placeholder="e.g. Schedule Update"
+                  onChange={(event) => updateNoticeField("title", event.target.value)}
+                  required
+                  type="text"
+                  value={noticeForm.title}
+                />
+              </label>
+              <label>
+                <span>Notice Body</span>
+                <textarea
+                  placeholder="Type announcement details here..."
+                  onChange={(event) => updateNoticeField("body", event.target.value)}
+                  required
+                  rows={5}
+                  value={noticeForm.body}
+                />
+              </label>
+              {noticeStatus ? (
+                <p className={`form-status-alert ${noticeStatus.includes("published") || noticeStatus.includes("updated") ? "success" : "error"}`}>
+                  {noticeStatus}
+                </p>
               ) : null}
-            </div>
-          </article>
-        ) : null}
+              <button className="admin-submit-btn" disabled={isSavingNotice} type="submit">
+                {isSavingNotice ? "Saving..." : "Save Notice"}
+              </button>
+              {editingNoticeId ? (
+                <button
+                  className="admin-cancel-btn"
+                  onClick={() => {
+                    setEditingNoticeId("");
+                    setNoticeForm(initialNoticeForm);
+                  }}
+                  type="button"
+                >
+                  Cancel Edit
+                </button>
+              ) : null}
+            </form>
 
-        <article className="admin-list-panel">
-          <h2>Live Productions</h2>
-          <div className="card-list admin-card-list">
-            {productions.map((production) => {
-              const canEditProduction = canManageProduction(production, currentUser, isAdmin);
-              const attachedDirectorEmails = getUniqueDirectorEmails(production.directorEmails ?? []);
-              const availableDirectorOptions = directorOptions.filter(
-                (member) => !attachedDirectorEmails.includes(normalizeEmail(member.email)),
-              );
-              const roleDraft = roleDrafts[production.id] ?? {
-                description: "",
-                memberEmail: "",
-              };
+            <article className="admin-list-panel">
+              <h2>Published Notices</h2>
+              <div className="card-list admin-card-list">
+                {notices.map((notice) => (
+                  <div className="editable-item notice-admin-card" key={notice.id}>
+                    <div className="item-info">
+                      <strong>{notice.title}</strong>
+                      <p>{notice.body}</p>
+                    </div>
+                    <div className="item-actions">
+                      <button className="item-edit-btn" type="button" onClick={() => startNoticeEdit(notice)}>
+                        Edit
+                      </button>
+                      <button className="item-delete-btn" type="button" onClick={() => deleteNotice(notice.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {notices.length === 0 ? <p className="empty-state">No notices published yet.</p> : null}
+              </div>
+            </article>
+          </div>
+        )}
 
-              return (
-                <div className="editable-item rehearsal-admin-card" key={production.id}>
-                  <div className="item-info">
-                    <strong>{production.title}</strong>
-                    <div className="production-director-manager">
-                      <span>Director(s)</span>
-                      <div className="production-director-list">
-                        {attachedDirectorEmails.map((directorEmail) => (
-                          <span className="production-director-chip" key={directorEmail}>
-                            {directorEmail}
-                            {isAdmin && attachedDirectorEmails.length > 1 ? (
-                              <button
-                                aria-label={`Remove ${directorEmail} from ${production.title}`}
-                                onClick={() => removeProductionDirector(production, directorEmail)}
-                                type="button"
-                              >
-                                Remove
-                              </button>
-                            ) : null}
-                          </span>
-                        ))}
-                      </div>
-                      {isAdmin ? (
+        {activeTab === "rehearsals" && isAdmin && (
+          <div className="admin-tab-grid">
+            <form className="admin-form" onSubmit={handleSaveRehearsal}>
+              <div className="form-header-row">
+                <h2>{editingRehearsalId ? "Edit Rehearsal" : "Add Rehearsal"}</h2>
+                <span className="form-icon">Rehearsal</span>
+              </div>
+              <label>
+                <span>Rehearsal Title</span>
+                <input
+                  placeholder="e.g. Act I Run-through"
+                  onChange={(event) => updateRehearsalField("title", event.target.value)}
+                  required
+                  type="text"
+                  value={rehearsalForm.title}
+                />
+              </label>
+              <label>
+                <span>Date and Time</span>
+                <input
+                  onChange={(event) => updateRehearsalField("rehearsalAt", event.target.value)}
+                  required
+                  type="datetime-local"
+                  value={rehearsalForm.rehearsalAt}
+                />
+              </label>
+              <label>
+                <span>Location / Stage Room</span>
+                <input
+                  placeholder="e.g. Stage Room A"
+                  onChange={(event) => updateRehearsalField("location", event.target.value)}
+                  type="text"
+                  value={rehearsalForm.location}
+                />
+              </label>
+              <label>
+                <span>Director's Instruction Note</span>
+                <textarea
+                  placeholder="e.g. Actors in scene 1-3 must prepare..."
+                  onChange={(event) => updateRehearsalField("note", event.target.value)}
+                  rows={4}
+                  value={rehearsalForm.note}
+                />
+              </label>
+              {rehearsalStatus ? (
+                <p className={`form-status-alert ${rehearsalStatus.includes("added") || rehearsalStatus.includes("updated") ? "success" : "error"}`}>
+                  {rehearsalStatus}
+                </p>
+              ) : null}
+              <button className="admin-submit-btn" disabled={isSavingRehearsal} type="submit">
+                {isSavingRehearsal ? "Saving..." : "Save Rehearsal"}
+              </button>
+              {editingRehearsalId ? (
+                <button
+                  className="admin-cancel-btn"
+                  onClick={() => {
+                    setEditingRehearsalId("");
+                    setRehearsalForm(initialRehearsalForm);
+                  }}
+                  type="button"
+                >
+                  Cancel Edit
+                </button>
+              ) : null}
+            </form>
+
+            <article className="admin-list-panel">
+              <h2>Scheduled Rehearsals</h2>
+              <div className="card-list admin-card-list">
+                {rehearsals.map((rehearsal) => (
+                  <div className="editable-item rehearsal-admin-card" key={rehearsal.id}>
+                    <div className="item-info">
+                      <strong>{rehearsal.title}</strong>
+                      <p className="rehearsal-time-label">{formatDateTime(rehearsal.rehearsalAt)}</p>
+                      {rehearsal.location ? <p className="rehearsal-location-label">{rehearsal.location}</p> : null}
+                    </div>
+                    <div className="item-actions">
+                      <button className="item-edit-btn" type="button" onClick={() => startRehearsalEdit(rehearsal)}>
+                        Edit
+                      </button>
+                      <button className="item-delete-btn" type="button" onClick={() => deleteRehearsal(rehearsal.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {rehearsals.length === 0 ? (
+                  <p className="empty-state">No rehearsal dates scheduled yet.</p>
+                ) : null}
+              </div>
+            </article>
+          </div>
+        )}
+
+        {activeTab === "productions" && (
+          <div className="admin-tab-grid">
+            <form className="admin-form" onSubmit={handleSaveProduction}>
+              <div className="form-header-row">
+                <h2>{editingProductionId ? "Edit Production" : "Add Production"}</h2>
+                <span className="form-icon">Production</span>
+              </div>
+              <label>
+                <span>Drama Name</span>
+                <input
+                  placeholder="e.g. Char Adhyay"
+                  onChange={(event) => updateProductionField("title", event.target.value)}
+                  required
+                  type="text"
+                  value={productionForm.title}
+                />
+              </label>
+              {isAdmin ? (
+                <label>
+                  <span>Attached Director(s)</span>
+                  <select
+                    multiple
+                    onChange={(event) =>
+                      updateProductionField(
+                        "directorEmails",
+                        Array.from(event.target.selectedOptions, (option) => option.value),
+                      )
+                    }
+                    required
+                    value={productionForm.directorEmails}
+                  >
+                    {directorOptions.map((member) => (
+                      <option key={member.email} value={member.email}>
+                        {member.email}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="form-status-alert success">
+                  This production will be attached to {currentUser?.email}.
+                </p>
+              )}
+              <div className="card-list admin-card-list">
+                <span>Cast / Role List</span>
+                {productionForm.roles.map((role, index) => (
+                  <div className="editable-item" key={`production-form-role-${index}`}>
+                    <div className="item-info">
+                      <label>
+                        <span>Role Description</span>
+                        <input
+                          placeholder="e.g. Father of the main character"
+                          onChange={(event) =>
+                            updateProductionFormRole(index, "description", event.target.value)
+                          }
+                          type="text"
+                          value={role.description}
+                        />
+                      </label>
+                      <label>
+                        <span>Member Playing Role</span>
                         <select
-                          aria-label={`Add director to ${production.title}`}
-                          onChange={(event) => {
-                            addProductionDirector(production, event.target.value);
-                            event.target.value = "";
-                          }}
-                          value=""
+                          onChange={(event) =>
+                            updateProductionFormRole(index, "memberEmail", event.target.value)
+                          }
+                          value={role.memberEmail}
                         >
-                          <option value="">Add director</option>
-                          {availableDirectorOptions.map((member) => (
+                          <option value="">Select member</option>
+                          {members.map((member) => (
                             <option key={member.email} value={member.email}>
                               {member.email}
                             </option>
                           ))}
                         </select>
+                      </label>
+                    </div>
+                    <div className="item-actions">
+                      <button
+                        className="item-delete-btn"
+                        onClick={() => removeProductionFormRole(index)}
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button className="item-edit-btn" onClick={addProductionFormRole} type="button">
+                  Add Cast Role
+                </button>
+              </div>
+              {productionStatus ? (
+                <p className={`form-status-alert ${productionStatus.includes("added") || productionStatus.includes("updated") ? "success" : "error"}`}>
+                  {productionStatus}
+                </p>
+              ) : null}
+              <button className="admin-submit-btn" disabled={isSavingProduction} type="submit">
+                {isSavingProduction ? "Saving..." : "Save Production"}
+              </button>
+              {editingProductionId ? (
+                <button
+                  className="admin-cancel-btn"
+                  onClick={() => {
+                    setEditingProductionId("");
+                    setProductionForm(initialProductionForm);
+                  }}
+                  type="button"
+                >
+                  Cancel Edit
+                </button>
+              ) : null}
+            </form>
+
+            <article className="admin-list-panel">
+              <h2>Live Productions</h2>
+              <div className="card-list admin-card-list">
+                {productions.map((production) => {
+                  const canEditProduction = canManageProduction(production, currentUser, isAdmin);
+                  const attachedDirectorEmails = getUniqueDirectorEmails(production.directorEmails ?? []);
+                  const availableDirectorOptions = directorOptions.filter(
+                    (member) => !attachedDirectorEmails.includes(normalizeEmail(member.email)),
+                  );
+                  const roleDraft = roleDrafts[production.id] ?? {
+                    description: "",
+                    memberEmail: "",
+                  };
+
+                  return (
+                    <div className="editable-item rehearsal-admin-card" key={production.id}>
+                      <div className="item-info">
+                        <strong>{production.title}</strong>
+                        <div className="production-director-manager">
+                          <span>Director(s)</span>
+                          <div className="production-director-list">
+                            {attachedDirectorEmails.map((directorEmail) => (
+                              <span className="production-director-chip" key={directorEmail}>
+                                {directorEmail}
+                                {isAdmin && attachedDirectorEmails.length > 1 ? (
+                                  <button
+                                    aria-label={`Remove ${directorEmail} from ${production.title}`}
+                                    onClick={() => removeProductionDirector(production, directorEmail)}
+                                    type="button"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : null}
+                              </span>
+                            ))}
+                          </div>
+                          {isAdmin ? (
+                            <select
+                              aria-label={`Add director to ${production.title}`}
+                              onChange={(event) => {
+                                addProductionDirector(production, event.target.value);
+                                event.target.value = "";
+                              }}
+                              value=""
+                            >
+                              <option value="">Add director</option>
+                              {availableDirectorOptions.map((member) => (
+                                <option key={member.email} value={member.email}>
+                                  {member.email}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                        </div>
+                        {(production.roles ?? []).map((role, index) => (
+                          <p key={`${role.description}-${role.memberEmail}`}>
+                            {role.description}: {role.memberEmail}
+                            {canEditProduction ? (
+                              <button type="button" onClick={() => removeProductionRole(production, index)}>
+                                Remove
+                              </button>
+                            ) : null}
+                          </p>
+                        ))}
+                        {(production.notes ?? []).map((note) => (
+                          <p key={`${note.authorEmail}-${note.createdAt}`}>
+                            Note: {note.body} ({note.authorEmail})
+                          </p>
+                        ))}
+                        {canEditProduction ? (
+                          <>
+                            <label>
+                              <span>Add Role Description</span>
+                              <input
+                                onChange={(event) =>
+                                  setRoleDrafts((currentDrafts) => ({
+                                    ...currentDrafts,
+                                    [production.id]: {
+                                      ...roleDraft,
+                                      description: event.target.value,
+                                    },
+                                  }))
+                                }
+                                type="text"
+                                value={roleDraft.description}
+                              />
+                            </label>
+                            <label>
+                              <span>Member Playing Role</span>
+                              <select
+                                onChange={(event) =>
+                                  setRoleDrafts((currentDrafts) => ({
+                                    ...currentDrafts,
+                                    [production.id]: {
+                                      ...roleDraft,
+                                      memberEmail: event.target.value,
+                                    },
+                                  }))
+                                }
+                                value={roleDraft.memberEmail}
+                              >
+                                <option value="">Select member</option>
+                                {members.map((member) => (
+                                  <option key={member.email} value={member.email}>
+                                    {member.email}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button className="item-edit-btn" type="button" onClick={() => addProductionRole(production)}>
+                              Add Role
+                            </button>
+                            <label>
+                              <span>Production Note</span>
+                              <textarea
+                                onChange={(event) =>
+                                  setNoteDrafts((currentDrafts) => ({
+                                    ...currentDrafts,
+                                    [production.id]: event.target.value,
+                                  }))
+                                }
+                                rows={3}
+                                value={noteDrafts[production.id] ?? ""}
+                              />
+                            </label>
+                            <button className="item-edit-btn" type="button" onClick={() => addProductionNote(production)}>
+                              Add Note
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                      {canEditProduction ? (
+                        <div className="item-actions">
+                          <button className="item-edit-btn" type="button" onClick={() => startProductionEdit(production)}>
+                            Edit
+                          </button>
+                          <button className="item-delete-btn" type="button" onClick={() => deleteProduction(production)}>
+                            Delete
+                          </button>
+                        </div>
                       ) : null}
                     </div>
-                    {(production.roles ?? []).map((role, index) => (
-                      <p key={`${role.description}-${role.memberEmail}`}>
-                        {role.description}: {role.memberEmail}
-                        {canEditProduction ? (
-                          <button type="button" onClick={() => removeProductionRole(production, index)}>
-                            Remove
-                          </button>
-                        ) : null}
-                      </p>
+                  );
+                })}
+                {productions.length === 0 ? (
+                  <p className="empty-state">No live productions added yet.</p>
+                ) : null}
+              </div>
+            </article>
+          </div>
+        )}
+
+        {activeTab === "attendance" && isAdmin && (
+          <section className="admin-attendance-section">
+            <article className="admin-list-panel attendance-manager-panel">
+              <div className="attendance-header-row">
+                <h2>Stage Manager Attendance Sheet</h2>
+                <div className="rehearsal-dropdown-block">
+                  <label htmlFor="attendance-rehearsal-select">Select Rehearsal Call:</label>
+                  <select
+                    id="attendance-rehearsal-select"
+                    onChange={(event) => setSelectedAttendanceRehearsalId(event.target.value)}
+                    value={selectedAttendanceRehearsalId}
+                  >
+                    <option value="">-- Choose a Rehearsal Date --</option>
+                    {rehearsals.map((rehearsal) => (
+                      <option key={rehearsal.id} value={rehearsal.id}>
+                        {rehearsal.title} ({formatDateTime(rehearsal.rehearsalAt)})
+                      </option>
                     ))}
-                    {(production.notes ?? []).map((note) => (
-                      <p key={`${note.authorEmail}-${note.createdAt}`}>
-                        Note: {note.body} ({note.authorEmail})
-                      </p>
-                    ))}
-                    {canEditProduction ? (
-                      <>
-                        <label>
-                          <span>Add Role Description</span>
-                          <input
-                            onChange={(event) =>
-                              setRoleDrafts((currentDrafts) => ({
-                                ...currentDrafts,
-                                [production.id]: {
-                                  ...roleDraft,
-                                  description: event.target.value,
-                                },
-                              }))
-                            }
-                            type="text"
-                            value={roleDraft.description}
-                          />
-                        </label>
-                        <label>
-                          <span>Member Playing Role</span>
-                          <select
-                            onChange={(event) =>
-                              setRoleDrafts((currentDrafts) => ({
-                                ...currentDrafts,
-                                [production.id]: {
-                                  ...roleDraft,
-                                  memberEmail: event.target.value,
-                                },
-                              }))
-                            }
-                            value={roleDraft.memberEmail}
-                          >
-                            <option value="">Select member</option>
-                            {members.map((member) => (
-                              <option key={member.email} value={member.email}>
-                                {member.email}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button className="item-edit-btn" type="button" onClick={() => addProductionRole(production)}>
-                          Add Role
-                        </button>
-                        <label>
-                          <span>Production Note</span>
-                          <textarea
-                            onChange={(event) =>
-                              setNoteDrafts((currentDrafts) => ({
-                                ...currentDrafts,
-                                [production.id]: event.target.value,
-                              }))
-                            }
-                            rows={3}
-                            value={noteDrafts[production.id] ?? ""}
-                          />
-                        </label>
-                        <button className="item-edit-btn" type="button" onClick={() => addProductionNote(production)}>
-                          Add Note
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                  {canEditProduction ? (
-                    <div className="item-actions">
-                      <button className="item-edit-btn" type="button" onClick={() => startProductionEdit(production)}>
-                        Edit
-                      </button>
-                      <button className="item-delete-btn" type="button" onClick={() => deleteProduction(production)}>
-                        Delete
-                      </button>
+                  </select>
+                </div>
+              </div>
+
+              {selectedAttendanceRehearsalId ? (
+                <form className="attendance-form-sheet" onSubmit={handleSaveAttendance}>
+                  {selectedAttendanceRehearsal ? (
+                    <div className="attendance-rehearsal-summary">
+                      <strong>{selectedAttendanceRehearsal.title}</strong>
+                      <small>{formatDateTime(selectedAttendanceRehearsal.rehearsalAt)}</small>
                     </div>
                   ) : null}
-                </div>
-              );
-            })}
-            {productions.length === 0 ? (
-              <p className="empty-state">No live productions added yet.</p>
-            ) : null}
-          </div>
-        </article>
-      </section>
+
+                  <div className="attendance-actions-bar">
+                    <button
+                      type="button"
+                      className="bulk-action-btn"
+                      onClick={() => {
+                        const records = {};
+                        members.forEach((m) => { records[m.email] = "present"; });
+                        setAttendanceRecords(records);
+                      }}
+                    >
+                      Mark All Present
+                    </button>
+                    <button
+                      type="button"
+                      className="bulk-action-btn"
+                      onClick={() => {
+                        const records = {};
+                        members.forEach((m) => { records[m.email] = "absent"; });
+                        setAttendanceRecords(records);
+                      }}
+                    >
+                      Mark All Absent
+                    </button>
+                  </div>
+
+                  <div className="attendance-members-list">
+                    {members.map((member) => {
+                      const status = attendanceRecords[member.email] || "absent";
+                      return (
+                        <div className="attendance-member-row" key={member.email}>
+                          <div className="member-details">
+                            <span className="member-email">{member.email}</span>
+                            <span className="member-role" data-role={member.role}>{member.role}</span>
+                          </div>
+                          <div className="status-toggle-group">
+                            <button
+                              type="button"
+                              className={`status-btn present ${status === "present" ? "active" : ""}`}
+                              onClick={() => handleToggleStatus(member.email, "present")}
+                            >
+                              Present
+                            </button>
+                            <button
+                              type="button"
+                              className={`status-btn absent ${status === "absent" ? "active" : ""}`}
+                              onClick={() => handleToggleStatus(member.email, "absent")}
+                            >
+                              Absent
+                            </button>
+                            <button
+                              type="button"
+                              className={`status-btn late ${status === "late" ? "active" : ""}`}
+                              onClick={() => handleToggleStatus(member.email, "late")}
+                            >
+                              Late
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {attendanceStatus ? (
+                    <p className={`form-status-alert ${attendanceStatus.includes("successfully") ? "success" : "error"}`}>
+                      {attendanceStatus}
+                    </p>
+                  ) : null}
+
+                  <button className="admin-submit-btn attendance-save-btn" disabled={isSavingAttendance} type="submit">
+                    {isSavingAttendance
+                      ? "Saving Attendance Sheet..."
+                      : savedAttendanceSheet
+                        ? "Update Attendance Sheet"
+                        : "Save Attendance Sheet"}
+                  </button>
+                </form>
+              ) : (
+                <p className="empty-state">Select a rehearsal date from the dropdown to start logging attendance.</p>
+              )}
+            </article>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
