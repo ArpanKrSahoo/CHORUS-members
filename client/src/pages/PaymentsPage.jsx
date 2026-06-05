@@ -285,7 +285,7 @@ export default function PaymentsPage() {
                 <span>Full Name (Proper Name)</span>
                 <input
                   type="text"
-                  placeholder="e.g. Arpan Kumar Sahoo"
+                  placeholder="e.g. Ankit Saha"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -306,7 +306,7 @@ export default function PaymentsPage() {
                 <span>Amount Paid (₹)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 500"
+                  placeholder="e.g. 100"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
