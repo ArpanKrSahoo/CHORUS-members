@@ -62,6 +62,14 @@ export default function ProtectedLayout() {
             <NavLink to="/productions" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Productions
             </NavLink>
+            <NavLink to="/payments" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+              Submit Payment
+            </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin/payments" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+                Payments Registry
+              </NavLink>
+            )}
             {(isAdmin || isDirector) && (
               <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
                 Admin

@@ -68,6 +68,7 @@ service cloud.firestore {
           "authUid",
           "createdAt",
           "email",
+          "name",
           "role",
           "updatedAt"
         ])
@@ -75,6 +76,7 @@ service cloud.firestore {
         && isText(request.resource.data.authUid, 128)
         && request.resource.data.createdAt is timestamp
         && hasOptionalTimestamp("updatedAt")
+        && hasOptionalText("name", 120)
         && request.resource.data.role in ["member", "admin", "director"];
     }
 
@@ -164,6 +166,29 @@ service cloud.firestore {
         && isText(request.resource.data.updatedBy, 160);
     }
 
+    function isValidPayment() {
+      return request.resource.data.keys().hasOnly([
+          "email",
+          "name",
+          "month",
+          "amount",
+          "screenshotUrl",
+          "submittedAt",
+          "status",
+          "category",
+          "description"
+        ])
+        && isText(request.resource.data.email, 120)
+        && isText(request.resource.data.name, 120)
+        && isText(request.resource.data.month, 10)
+        && request.resource.data.amount is number
+        && isText(request.resource.data.screenshotUrl, 1000)
+        && request.resource.data.submittedAt is timestamp
+        && request.resource.data.status in ["pending", "approved", "rejected"]
+        && request.resource.data.category in ["monthly", "other"]
+        && hasOptionalText("description", 200);
+    }
+
     match /members/{memberEmail} {
       allow read: if isSignedIn() && (authEmail() == memberEmail || isAdmin() || isDirector());
       allow create: if (
@@ -171,7 +196,18 @@ service cloud.firestore {
           || authEmail() == memberEmail && request.resource.data.role == "member"
         )
         && isValidMember(memberEmail);
-      allow update: if isAdmin() && isValidMember(memberEmail);
+      allow update: if (
+          isAdmin()
+          || (authEmail() == memberEmail && request.resource.data.role == resource.data.role)
+        )
+        && isValidMember(memberEmail);
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (authEmail() == resource.data.email || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.email == authEmail() && isValidPayment();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

@@ -11,6 +11,8 @@ import NoticesPage from "./pages/NoticesPage";
 import ProductionsPage from "./pages/ProductionsPage";
 import ProtectedLayout from "./pages/ProtectedLayout";
 import RehearsalsPage from "./pages/RehearsalsPage";
+import PaymentsPage from "./pages/PaymentsPage";
+import AdminPaymentsPage from "./pages/AdminPaymentsPage";
 import "./styles.css";
 
 const SPLASH_DURATION_MS = 2500;
@@ -48,6 +50,13 @@ export default function App() {
         <Route path="/productions" element={<ProductionsPage />} />
         <Route path="/rehearsals" element={<RehearsalsPage />} />
         <Route path="/notices" element={<NoticesPage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
+        <Route
+          path="/admin/payments"
+          element={
+            isAdmin ? <AdminPaymentsPage /> : <Navigate to="/home" replace />
+          }
+        />
         <Route
           path="/admin"
           element={

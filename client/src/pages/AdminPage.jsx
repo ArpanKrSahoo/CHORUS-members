@@ -21,6 +21,7 @@ import { db, secondaryAuth } from "../lib/firebase";
 import { formatDateTime, getLocalDateTimeValue } from "../utils/dateTime";
 
 const initialMemberForm = {
+  name: "",
   email: "",
   password: "",
   role: "member",
@@ -355,6 +356,7 @@ export default function AdminPage() {
         authUid: credential.user.uid,
         createdAt: serverTimestamp(),
         email,
+        name: memberForm.name.trim(),
         role: memberForm.role,
       });
 
@@ -384,6 +386,25 @@ export default function AdminPage() {
       setMemberStatus("Member role updated.");
     } catch (error) {
       setMemberStatus(getStatusMessage(error, "Unable to update role."));
+    }
+  }
+
+  async function handleUpdateMemberName(memberEmail, name) {
+    setMemberStatus("");
+
+    if (!isAdmin || !db) {
+      setMemberStatus("Only admins can update member names.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "members", memberEmail), {
+        name: name.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      setMemberStatus("Member name updated.");
+    } catch (error) {
+      setMemberStatus(getStatusMessage(error, "Unable to update name."));
     }
   }
 
@@ -728,6 +749,16 @@ export default function AdminPage() {
               <h2>Add Member</h2>
               <span className="form-icon">Member</span>
             </div>
+            <label>
+              <span>Full Name</span>
+              <input
+                placeholder="e.g. Arpan Kumar Sahoo"
+                onChange={(event) => updateMemberField("name", event.target.value)}
+                required
+                type="text"
+                value={memberForm.name}
+              />
+            </label>
             <label>
               <span>Email Address</span>
               <input
@@ -1118,7 +1149,15 @@ export default function AdminPage() {
             <h2>Registry Directory</h2>
             <div className="table-list">
               {members.map((member) => (
-                <div className="table-row" key={member.email}>
+                <div className="table-row member-registry-row" key={member.email}>
+                  <input
+                    type="text"
+                    className="member-name-input"
+                    placeholder="Set Proper Name"
+                    disabled={member.source === "Predefined admin"}
+                    onBlur={(event) => handleUpdateMemberName(member.email, event.target.value)}
+                    defaultValue={member.name || ""}
+                  />
                   <span className="member-email-col">{member.email}</span>
                   <select
                     className="member-role-badge"

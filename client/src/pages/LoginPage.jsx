@@ -97,7 +97,7 @@ export default function LoginPage() {
           </div>
 
           <footer className="login-panel-footer">
-            <p>Need assistance? Contact our team at <a href="mailto:support@chorus.com">support@chorus.com</a></p>
+            <p>Need assistance? Contact our team at <a href="mailto:support@chorus.com">arpansahoo413@gmail.com</a></p>
             <span className="copyright-tag">© {new Date().getFullYear()} CHORUS Drama Club. All rights reserved.</span>
           </footer>
         </div>
