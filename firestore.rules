@@ -63,6 +63,11 @@ service cloud.firestore {
         || request.resource.data.get(fieldName, request.time) is timestamp;
     }
 
+    function hasOptionalNumber(fieldName) {
+      return !request.resource.data.keys().hasAny([fieldName])
+        || request.resource.data.get(fieldName, 0) is number;
+    }
+
     function isValidMember(memberEmail) {
       return request.resource.data.keys().hasOnly([
           "authUid",
@@ -172,21 +177,56 @@ service cloud.firestore {
           "name",
           "month",
           "amount",
-          "screenshotUrl",
-          "submittedAt",
-          "status",
           "category",
-          "description"
+          "description",
+          "receiptBytes",
+          "receiptFormat",
+          "receiptOriginalName",
+          "receiptPublicId",
+          "receiptResourceType",
+          "receiptUrl",
+          "screenshotUrl",
+          "status",
+          "submittedAt"
         ])
         && isText(request.resource.data.email, 120)
         && isText(request.resource.data.name, 120)
         && isText(request.resource.data.month, 10)
         && request.resource.data.amount is number
+        && request.resource.data.amount > 0
         && isText(request.resource.data.screenshotUrl, 1000)
         && request.resource.data.submittedAt is timestamp
         && request.resource.data.status in ["pending", "approved", "rejected"]
         && request.resource.data.category in ["monthly", "other"]
-        && hasOptionalText("description", 200);
+        && hasOptionalText("description", 200)
+        && hasOptionalNumber("receiptBytes")
+        && hasOptionalText("receiptFormat", 40)
+        && hasOptionalText("receiptOriginalName", 240)
+        && hasOptionalText("receiptPublicId", 300)
+        && hasOptionalText("receiptUrl", 1000)
+        && (
+          !request.resource.data.keys().hasAny(["receiptResourceType"])
+          || request.resource.data.receiptResourceType in ["image", "raw", "video", "auto"]
+        );
+    }
+
+    function isCloudinaryReceiptUrl(url) {
+      return url.matches("^https://res.cloudinary.com/.+");
+    }
+
+    function isNewPendingPaymentForSelf() {
+      return request.resource.data.email == authEmail()
+        && request.resource.data.status == "pending"
+        && isText(request.resource.data.receiptPublicId, 300)
+        && isText(request.resource.data.receiptUrl, 1000)
+        && request.resource.data.screenshotUrl == request.resource.data.receiptUrl
+        && isCloudinaryReceiptUrl(request.resource.data.receiptUrl);
+    }
+
+    function isValidPaymentStatusUpdate() {
+      return isValidPayment()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status in ["pending", "approved", "rejected"];
     }
 
     match /members/{memberEmail} {
@@ -206,8 +246,8 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (authEmail() == resource.data.email || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.email == authEmail() && isValidPayment();
-      allow update: if isAdmin();
+      allow create: if isSignedIn() && isNewPendingPaymentForSelf() && isValidPayment();
+      allow update: if isAdmin() && isValidPaymentStatusUpdate();
       allow delete: if isAdmin();
     }
 
