@@ -5,10 +5,9 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  orderBy,
   query,
-  runTransaction,
   serverTimestamp,
+  setDoc,
   where,
 } from "firebase/firestore";
 import {
@@ -67,11 +66,17 @@ export default function PaymentsPage() {
     if (!db || !currentUser?.email) return;
     const q = query(
       collection(db, "payments"),
-      where("email", "==", currentUser.email.toLowerCase()),
-      orderBy("submittedAt", "desc")
+      where("email", "==", currentUser.email.toLowerCase())
     );
     return onSnapshot(q, (snap) => {
-      setPastPayments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const payments = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const firstTime = a.submittedAt?.toMillis?.() ?? 0;
+          const secondTime = b.submittedAt?.toMillis?.() ?? 0;
+          return secondTime - firstTime;
+        });
+      setPastPayments(payments);
     });
   }, [currentUser]);
 
@@ -143,33 +148,23 @@ export default function PaymentsPage() {
 
       setStatusMsg("Saving payment transaction...");
       const paymentRef = doc(collection(db, "payments"));
-      const memberRef = doc(db, "members", email);
 
-      await runTransaction(db, async (transaction) => {
-        transaction.set(paymentRef, {
-          email,
-          name: name.trim(),
-          month: currentMonth,
-          amount: parseFloat(amount),
-          receiptBytes: receiptUpload.bytes,
-          receiptFormat: receiptUpload.format,
-          receiptOriginalName: receiptUpload.originalFilename,
-          receiptPublicId: receiptUpload.publicId,
-          receiptResourceType: receiptUpload.resourceType,
-          receiptUrl: receiptUpload.secureUrl,
-          screenshotUrl: receiptUpload.secureUrl,
-          submittedAt: serverTimestamp(),
-          status: "pending",
-          category,
-          description: category === "other" ? description.trim() : "",
-        });
-
-        if (!memberProfile?.name || memberProfile.name !== name.trim()) {
-          transaction.update(memberRef, {
-            name: name.trim(),
-            updatedAt: serverTimestamp(),
-          });
-        }
+      await setDoc(paymentRef, {
+        email,
+        name: name.trim(),
+        month: currentMonth,
+        amount: parseFloat(amount),
+        receiptBytes: receiptUpload.bytes,
+        receiptFormat: receiptUpload.format,
+        receiptOriginalName: receiptUpload.originalFilename,
+        receiptPublicId: receiptUpload.publicId,
+        receiptResourceType: receiptUpload.resourceType,
+        receiptUrl: receiptUpload.secureUrl,
+        screenshotUrl: receiptUpload.secureUrl,
+        submittedAt: serverTimestamp(),
+        status: "pending",
+        category,
+        description: category === "other" ? description.trim() : "",
       });
 
       setStatusMsg("Upload Complete! Payment registered successfully.");
@@ -178,9 +173,6 @@ export default function PaymentsPage() {
       setReceiptFile(null);
       setCategory("monthly");
       setDescription("");
-      
-      // Update local profile state
-      setMemberProfile((prev) => ({ ...prev, name: name.trim() }));
     } catch (error) {
       console.error(error);
       setStatusMsg(error.message || "Failed to submit payment details.");
