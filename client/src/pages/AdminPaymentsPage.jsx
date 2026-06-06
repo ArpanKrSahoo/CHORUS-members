@@ -18,7 +18,7 @@ export default function AdminPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [actionStatus, setActionStatus] = useState("");
 
   // Fetch all payment submissions
@@ -174,13 +174,17 @@ export default function AdminPaymentsPage() {
                 <th>Amount</th>
                 <th>Submitted On</th>
                 <th>Status</th>
-                <th>Screenshot Receipt</th>
+                <th>Receipt File</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredPayments.map((p) => {
-                const properName = memberNameMap[p.email.toLowerCase()] || p.name || "N/A";
+                const paymentEmail = p.email || "";
+                const properName = memberNameMap[paymentEmail.toLowerCase()] || p.name || "N/A";
+                const receiptUrl = p.receiptUrl || p.screenshotUrl;
+                const isPdfReceipt = (p.receiptFormat || "").toLowerCase() === "pdf";
+                const isImageReceipt = !isPdfReceipt && (p.receiptResourceType || "image") === "image";
                 return (
                   <tr key={p.id}>
                     <td>
@@ -188,7 +192,7 @@ export default function AdminPaymentsPage() {
                         <strong>{properName}</strong>
                       </div>
                     </td>
-                    <td>{p.email}</td>
+                    <td>{paymentEmail}</td>
                     <td>{formatMonthName(p.month)}</td>
                     <td>
                       {p.category === "other" ? (
@@ -207,21 +211,27 @@ export default function AdminPaymentsPage() {
                       </span>
                     </td>
                     <td>
-                      {p.screenshotUrl ? (
-                        <button
-                          type="button"
-                          className="preview-thumbnail-btn"
-                          onClick={() => setSelectedImage(p.screenshotUrl)}
-                        >
-                          <img
-                            src={p.screenshotUrl}
-                            alt="Receipt thumb"
-                            className="receipt-thumbnail"
-                          />
-                          <span>Click to Zoom</span>
-                        </button>
+                      {receiptUrl ? (
+                        isImageReceipt ? (
+                          <button
+                            type="button"
+                            className="preview-thumbnail-btn"
+                            onClick={() => setSelectedReceipt(receiptUrl)}
+                          >
+                            <img
+                              src={receiptUrl}
+                              alt="Receipt thumb"
+                              className="receipt-thumbnail"
+                            />
+                            <span>Click to Zoom</span>
+                          </button>
+                        ) : (
+                          <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="view-receipt-link">
+                            Open PDF
+                          </a>
+                        )
                       ) : (
-                        <span className="muted-text">No image</span>
+                        <span className="muted-text">No receipt</span>
                       )}
                     </td>
                     <td>
@@ -259,18 +269,18 @@ export default function AdminPaymentsPage() {
         </div>
       </section>
 
-      {/* Lightbox Modal for Zooming Screenshots */}
-      {selectedImage && (
-        <div className="lightbox-overlay" onClick={() => setSelectedImage(null)}>
+      {/* Lightbox Modal for Zooming Receipt Images */}
+      {selectedReceipt && (
+        <div className="lightbox-overlay" onClick={() => setSelectedReceipt(null)}>
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="lightbox-close"
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setSelectedReceipt(null)}
             >
               ×
             </button>
-            <img src={selectedImage} alt="Payment Receipt Zoomed" className="lightbox-image" />
+            <img src={selectedReceipt} alt="Payment Receipt Zoomed" className="lightbox-image" />
           </div>
         </div>
       )}

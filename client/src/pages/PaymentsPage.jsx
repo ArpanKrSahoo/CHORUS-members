@@ -11,64 +11,19 @@ import {
   serverTimestamp,
   where,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../lib/firebase";
+import {
+  cloudinaryConfigStatus,
+  uploadPaymentReceipt,
+  validatePaymentReceipt,
+} from "../lib/cloudinary";
+import { db } from "../lib/firebase";
 import { formatDateTime } from "../utils/dateTime";
-
-// Helper function to compress images using HTML5 Canvas
-const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.3) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error("Canvas to Blob conversion failed"));
-            }
-          },
-          "image/jpeg",
-          quality
-        );
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
-  });
-};
 
 export default function PaymentsPage() {
   const { currentUser } = useOutletContext();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [screenshotFile, setScreenshotFile] = useState(null);
+  const [receiptFile, setReceiptFile] = useState(null);
   const [pastPayments, setPastPayments] = useState([]);
   const [memberProfile, setMemberProfile] = useState(null);
   const [statusMsg, setStatusMsg] = useState("");
@@ -126,9 +81,11 @@ export default function PaymentsPage() {
   }, [pastPayments, currentMonth]);
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setScreenshotFile(e.target.files[0]);
-    }
+    const file = e.target.files?.[0] || null;
+    const validationError = validatePaymentReceipt(file);
+    setReceiptFile(validationError ? null : file);
+    setStatusMsg(validationError);
+    setStatusType(validationError ? "error" : "");
   };
 
   const handleSubmit = async (e) => {
@@ -154,55 +111,59 @@ export default function PaymentsPage() {
       return;
     }
 
-    if (!screenshotFile) {
-      setStatusMsg("Please select a payment screenshot.");
+    const fileError = validatePaymentReceipt(receiptFile);
+    if (fileError) {
+      setStatusMsg(fileError);
       setStatusType("error");
       return;
     }
 
-    if (!storage || !db) {
+    if (!db) {
       setStatusMsg("Firebase configurations missing.");
+      setStatusType("error");
+      return;
+    }
+
+    if (!cloudinaryConfigStatus.isConfigured) {
+      setStatusMsg(`Cloudinary is missing: ${cloudinaryConfigStatus.missingKeys.join(", ")}`);
       setStatusType("error");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // 1. Compress Image to Low Quality
-      setStatusMsg("Compressing screenshot to low quality...");
-      setStatusType("info");
-      const compressedBlob = await compressImage(screenshotFile);
-
-      // 2. Upload to Firebase Storage
-      setStatusMsg("Uploading screenshot...");
-      const fileExtension = screenshotFile.name.split(".").pop() || "jpg";
-      const fileName = `${currentMonth}_${Date.now()}.${fileExtension}`;
-      const storageRef = ref(storage, `screenshots/${currentUser.email.toLowerCase()}/${fileName}`);
-      
-      const uploadResult = await uploadBytes(storageRef, compressedBlob);
-      const downloadUrl = await getDownloadURL(uploadResult.ref);
-
-      // 3. Write Payment and sync user's Name in profile if not already set
-      setStatusMsg("Saving payment transaction...");
       const email = currentUser.email.toLowerCase();
+
+      setStatusMsg("Uploading receipt...");
+      setStatusType("info");
+      const receiptUpload = await uploadPaymentReceipt(receiptFile, {
+        email,
+        month: currentMonth,
+      });
+
+      setStatusMsg("Saving payment transaction...");
       const paymentRef = doc(collection(db, "payments"));
       const memberRef = doc(db, "members", email);
 
       await runTransaction(db, async (transaction) => {
-        // Set payment record
         transaction.set(paymentRef, {
           email,
           name: name.trim(),
           month: currentMonth,
           amount: parseFloat(amount),
-          screenshotUrl: downloadUrl,
+          receiptBytes: receiptUpload.bytes,
+          receiptFormat: receiptUpload.format,
+          receiptOriginalName: receiptUpload.originalFilename,
+          receiptPublicId: receiptUpload.publicId,
+          receiptResourceType: receiptUpload.resourceType,
+          receiptUrl: receiptUpload.secureUrl,
+          screenshotUrl: receiptUpload.secureUrl,
           submittedAt: serverTimestamp(),
           status: "pending",
           category,
           description: category === "other" ? description.trim() : "",
         });
 
-        // If member profile doesn't have a name yet, sync it
         if (!memberProfile?.name || memberProfile.name !== name.trim()) {
           transaction.update(memberRef, {
             name: name.trim(),
@@ -214,7 +175,7 @@ export default function PaymentsPage() {
       setStatusMsg("Upload Complete! Payment registered successfully.");
       setStatusType("success");
       setAmount("");
-      setScreenshotFile(null);
+      setReceiptFile(null);
       setCategory("monthly");
       setDescription("");
       
@@ -270,6 +231,17 @@ export default function PaymentsPage() {
                   <span className={`status-badge status-${currentMonthPayment.status}`}>
                     {currentMonthPayment.status.toUpperCase()}
                   </span>
+                </div>
+                <div className="receipt-row">
+                  <span>Receipt:</span>
+                  <a
+                    href={currentMonthPayment.receiptUrl || currentMonthPayment.screenshotUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="view-receipt-link"
+                  >
+                    View Receipt
+                  </a>
                 </div>
               </div>
               <p className="reopen-tip">The form will automatically reopen on the 1st of next month.</p>
@@ -343,10 +315,10 @@ export default function PaymentsPage() {
               )}
 
               <label>
-                <span>Payment Screenshot (Low Quality Storage Enabled)</span>
+                <span>Payment Receipt</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
                   onChange={handleFileChange}
                   required
                   disabled={isSubmitting}
@@ -402,8 +374,8 @@ export default function PaymentsPage() {
                           </span>
                         </td>
                         <td>
-                          <a href={p.screenshotUrl} target="_blank" rel="noopener noreferrer" className="view-receipt-link">
-                            View Image
+                          <a href={p.receiptUrl || p.screenshotUrl} target="_blank" rel="noopener noreferrer" className="view-receipt-link">
+                            View Receipt
                           </a>
                         </td>
                       </tr>
