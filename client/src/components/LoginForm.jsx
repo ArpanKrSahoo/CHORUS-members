@@ -12,7 +12,9 @@ export default function LoginForm({
   return (
     <form className="login-form" onSubmit={onSubmit}>
       <div className="login-input-group">
-        <label htmlFor="login-email">Email Address</label>
+        <label htmlFor="login-email" style={{ color: "#FFAC1C" }}>
+          Email Address
+        </label>
         <input
           id="login-email"
           autoComplete="email"
@@ -21,13 +23,16 @@ export default function LoginForm({
           placeholder="e.g. member@chorus.com"
           onChange={(event) => onEmailChange(event.target.value)}
           required
+          style={{ color: "#0f172a", backgroundColor: "#ffffff" }}
           type="email"
           value={email}
         />
       </div>
 
       <div className="login-input-group">
-        <label htmlFor="login-password">Password</label>
+        <label htmlFor="login-password" style={{ color: "#FFAC1C" }}>
+          Password
+        </label>
         <input
           id="login-password"
           autoComplete="current-password"
@@ -35,6 +40,7 @@ export default function LoginForm({
           placeholder="••••••••"
           onChange={(event) => onPasswordChange(event.target.value)}
           required
+          style={{ color: "#0f172a", backgroundColor: "#ffffff" }}
           type="password"
           value={password}
         />

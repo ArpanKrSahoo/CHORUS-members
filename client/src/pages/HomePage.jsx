@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { formatDateTime, getTimestampDateValue } from "../utils/dateTime";
+import { ASSETS } from "../constants/assets";
 
 const CLUB_NAME = "CHORUS";
 
@@ -91,8 +92,14 @@ export default function HomePage() {
   return (
     <section className="home-panel-container" aria-labelledby="page-heading">
       <div className="home-hero-banner">
-        <h1 id="page-heading">রঙ্গমঞ্চ সদস্য লবি</h1>
-        <p className="subtitle">
+        <div className="home-hero-brand-container">
+          <img src={ASSETS.logo} className="home-hero-logo" alt={`${CLUB_NAME} logo`} />
+          <span className="barlow-hero-headline">
+            {CLUB_NAME}
+          </span>
+        </div>
+        <h1 id="page-heading" style={{ textAlign: "center", marginBottom: "16px" }}>রঙ্গমঞ্চ সদস্য লবি</h1>
+        <p className="subtitle" style={{ margin: "0 auto", textAlign: "center" }}>
           Welcome to the {CLUB_NAME} creative workspace. Review schedules, committee notes, and scripts.
         </p>
       </div>

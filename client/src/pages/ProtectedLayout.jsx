@@ -56,6 +56,15 @@ export default function ProtectedLayout() {
 
   return (
     <div className="protected-shell">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="global-video-bg"
+      >
+        <source src="https://archive.org/download/PatherPanchali1955720p/Pather%20Panchali%20%281955%29%20%5B720p%5D.mp4" type="video/mp4" />
+      </video>
       <header className="workspace-navbar" ref={navbarRef}>
         <div className="navbar-container">
           <Link to="/home" className="navbar-brand" onClick={() => setIsMobileMenuOpen(false)}>
